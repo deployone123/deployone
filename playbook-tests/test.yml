@@ -1,0 +1,15 @@
+- name: Install nginx
+  hosts: test
+  remote_user: root
+
+  tasks:
+    - name: Installing nginx
+      ansible.builtin.package:
+        name: nginx
+        state: present
+
+    - name: Ensure it's started and enabled
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
