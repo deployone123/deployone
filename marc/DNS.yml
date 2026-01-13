@@ -1,0 +1,44 @@
+#cloud-config
+hostname: dns-server
+manage_etc_hosts: true
+
+users:
+  - name: admin
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: "$6$HASH_DE_PASSWORD"
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - bind9
+  - bind9utils
+  - bind9-doc
+  - dnsutils
+
+write_files:
+  - path: /etc/bind/named.conf.options
+    content: |
+      options {
+        directory "/var/cache/bind";
+
+        recursion yes;
+        allow-query { any; };
+        listen-on { any; };
+        allow-recursion { any; };
+
+        forwarders {
+          8.8.8.8;
+          8.8.4.4;
+        };
+
+        dnssec-validation auto;
+        auth-nxdomain no;
+      };
+
+runcmd:
+  - systemctl enable bind9
+  - systemctl restart bind9
