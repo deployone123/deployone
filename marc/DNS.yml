@@ -1,44 +1,51 @@
-#cloud-config
-hostname: dns-server
-manage_etc_hosts: true
+---
+- name: Instalar y configurar servidor DNS
+  hosts: dns
+  become: yes
 
-users:
-  - name: admin
-    sudo: ALL=(ALL) NOPASSWD:ALL
-    groups: sudo
-    shell: /bin/bash
-    lock_passwd: false
-    passwd: "$6$HASH_DE_PASSWORD"
+  vars:
+    dns_forwarders:
+      - 8.8.8.8
+      - 8.8.4.4
 
-package_update: true
-package_upgrade: true
+  tasks:
+    - name: Actualizar cache de paquetes
+      apt:
+        update_cache: yes
 
-packages:
-  - bind9
-  - bind9utils
-  - bind9-doc
-  - dnsutils
+    - name: Instalar Bind9 y utilidades
+      apt:
+        name:
+          - bind9
+          - bind9utils
+          - bind9-doc
+          - dnsutils
+        state: present
 
-write_files:
-  - path: /etc/bind/named.conf.options
-    content: |
-      options {
-        directory "/var/cache/bind";
+    - name: Configurar named.conf.options
+      copy:
+        dest: /etc/bind/named.conf.options
+        content: |
+          options {
+            directory "/var/cache/bind";
 
-        recursion yes;
-        allow-query { any; };
-        listen-on { any; };
-        allow-recursion { any; };
+            recursion yes;
+            allow-query { any; };
+            listen-on { any; };
+            allow-recursion { any; };
 
-        forwarders {
-          8.8.8.8;
-          8.8.4.4;
-        };
+            forwarders {
+              {% for ip in dns_forwarders %}
+              {{ ip }};
+              {% endfor %}
+            };
 
-        dnssec-validation auto;
-        auth-nxdomain no;
-      };
+            dnssec-validation auto;
+            auth-nxdomain no;
+          };
 
-runcmd:
-  - systemctl enable bind9
-  - systemctl restart bind9
+    - name: Habilitar y reiniciar Bind9
+      service:
+        name: bind9
+        enabled: yes
+        state: restarted
