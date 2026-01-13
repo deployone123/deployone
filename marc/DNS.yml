@@ -2,6 +2,7 @@
 - name: Instalar y configurar servidor DNS
   hosts: dns
   become: yes
+  remote_user: root
 
   vars:
     dns_forwarders:
