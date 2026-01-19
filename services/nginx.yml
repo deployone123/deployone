@@ -13,3 +13,8 @@ tasks:
       name: nginx
       state: started
       enabled: true
+
+  - name: Send html file
+    ansible.builtin.template:
+      src: ./index.html
+      dest: /var/www/index.html
