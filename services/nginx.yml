@@ -3,12 +3,6 @@
   remote_user: root
 
   tasks:
-    - name: Update the package list
-      ansible.builtin.apt:
-        update_cache: true
-        name: "*"
-        state: latest
-
     - name: Installing nginx
       ansible.builtin.package:
         name: nginx
