@@ -14,10 +14,18 @@
         state: started
         enabled: true
 
+    - name: Find any html file not meant to be there
+      find:
+        paths: /var/www/html
+        patterns: "index*.html"
+        file_type: file
+      register: index_files
+
     - name: Delete default nginx html
       file:
-        path: /var/www/html/index*.html
+        path: "{{ item.path }}"
         state: absent
+      loop: "{{ index_files.files }}"
 
     - name: Send html file
       template:
