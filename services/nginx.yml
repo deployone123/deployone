@@ -4,17 +4,22 @@
 
   tasks:
     - name: Installing nginx
-      ansible.builtin.package:
+      package:
         name: nginx
         state: present
 
     - name: Ensure it's started and enabled
-      ansible.builtin.service:
+      service:
         name: nginx
         state: started
         enabled: true
 
+    - name: Delete default nginx html
+      file:
+        path: /var/www/html/index*.html
+        state: absent
+
     - name: Send html file
-      ansible.builtin.template:
+      template:
         src: ./index.html
-        dest: /var/www/index.html
+        dest: /var/www/html/index.html
