@@ -1,0 +1,20 @@
+- name: Install dnsmasq
+  hosts: test
+  remote_user: root
+
+  tasks:
+    - name: Installing dnsmasq
+      package:
+        name: dnsmasq
+        state: present
+
+    - name: Ensure it's started and enabled
+      service:
+        name: dnsmasq
+        state: started
+        enabled: true
+
+    - name: Send html file
+      template:
+        src: ./dhcp.conf
+        dest: /etc/dnsmasq.d/dhcp.conf
