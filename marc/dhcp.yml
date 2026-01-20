@@ -1,5 +1,5 @@
 - name: Install dnsmasq
-  hosts: test
+  hosts: dns
   remote_user: root
 
   tasks:
