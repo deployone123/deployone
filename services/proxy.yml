@@ -1,0 +1,26 @@
+- name: Install nginx proxy
+  hosts: test
+  remote_user: root
+
+  tasks:
+    - name: Install docker-compose
+      package:
+        name: docker-compose
+        state: present
+
+    - name: Create directory
+      file:
+        path: /usr/deployone
+        state: directory
+
+    - name: Send docker-compose file
+      template:
+        src: ./proxy-docker
+        dest: /usr/deployone/docker-compose.yml
+
+    - name: Start docker-compose
+      docker_compose:
+        project_src: /usr/deployone
+        files:
+          - "docker-compose.yml"
+        state: present

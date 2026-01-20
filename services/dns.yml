@@ -14,7 +14,7 @@
         state: started
         enabled: true
 
-    - name: Send html file
+    - name: Send config file
       template:
         src: ./dns.conf
         dest: /etc/dnsmasq.d/dns.conf
