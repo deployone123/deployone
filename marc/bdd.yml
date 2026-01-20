@@ -1,0 +1,48 @@
+---
+- name: Instalación y configuración de MariaDB
+  hosts: db_servers
+  become: true
+  vars:
+    db_name: ejemplo_db
+    db_user: ejemplo_user
+    db_password: "TuPasswordSegura123"
+
+  tasks:
+    - name: Actualizar cache de paquetes
+      apt:
+        update_cache: yes
+
+    - name: Instalar MariaDB
+      apt:
+        name: mariadb-server
+        state: present
+
+    - name: Asegurar que MariaDB esté activo y habilitado
+      service:
+        name: mariadb
+        state: started
+        enabled: true
+
+    - name: Instalar paquete de Python para módulos de Ansible de MySQL/MariaDB
+      apt:
+        name: python3-pymysql
+        state: present
+
+    - name: Crear base de datos
+      community.mysql.mysql_db:
+        name: "{{ db_name }}"
+        state: present
+        encoding: utf8mb4
+
+    - name: Crear usuario y darle permisos en la base de datos
+      community.mysql.mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        priv: "{{ db_name }}.*:ALL"
+        host: "%"
+        state: present
+
+    - name: Reiniciar MariaDB para aplicar cambios
+      service:
+        name: mariadb
+        state: restarted
