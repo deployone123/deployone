@@ -19,7 +19,7 @@
         dest: /usr/deployone/docker-compose.yml
 
     - name: Start docker-compose
-      docker_compose_v2:
+      docker_compose:
         project_src: /usr/deployone
         files:
           - "docker-compose.yml"
