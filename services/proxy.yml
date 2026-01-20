@@ -20,8 +20,6 @@
         dest: /usr/deployone/docker-compose.yml
 
     - name: Start docker-compose
-      community.docker.docker_compose_v2:
-        project_src: /usr/deployone
-        files:
-          - "docker-compose.yml"
-        state: present
+      command:
+        cmd: docker-compose up -d
+        chdir: /usr/deployone
