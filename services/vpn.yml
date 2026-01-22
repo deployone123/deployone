@@ -11,7 +11,7 @@
     - name: Generate wg private key
       community.crypto.openssl_privatekey:
         path: /etc/wireguard/privatekey
-        type: ed25519
+        type: Ed25519
         mode: '0600'
 
     - name: Generate wg public key
