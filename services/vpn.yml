@@ -24,9 +24,8 @@
         path: /etc/wireguard/privatekey
         mode: '0600'
 
-
     - set_fact:
-        wireguard_public_key: "{{ wg_pubkey.stdout }}"
+        wireguard_public_key: "{{ publickey.stdout }}"
 
     - name: Deploy wg config
       template:
