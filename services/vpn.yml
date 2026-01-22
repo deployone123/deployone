@@ -8,6 +8,12 @@
         name: wireguard
         state: present
 
+    - name: Install crypto dependencies for Ansible
+      package:
+        name:
+          - python3-cryptography
+        state: present
+
     - name: Generate wg private key
       community.crypto.openssl_privatekey:
         path: /etc/wireguard/privatekey
