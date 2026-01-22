@@ -20,10 +20,8 @@
         type: Ed25519
         mode: '0600'
 
-    - name: Generate wg public key
-      command: wg pubkey
-      args:
-        stdin: "{{ lookup('ansible.builtin.pipe', 'cat /etc/wireguard/privatekey') }}"
+    - name: Generate WireGuard public key
+      shell: wg pubkey < /etc/wireguard/privatekey
       register: wg_pubkey
       changed_when: false
 
