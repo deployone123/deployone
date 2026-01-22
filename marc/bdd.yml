@@ -1,5 +1,5 @@
 ---
-- name: Instalación y configuración de MariaDB
+- name: Instalación y configuración de MariaDB en Debian
   hosts: dns
   remote_user: root
   vars:
@@ -32,6 +32,8 @@
 
     - name: Crear usuario administrador de MariaDB para Ansible
       community.mysql.mysql_user:
+        login_user: root
+        login_password: ""       # root con auth_socket no necesita contraseña
         name: "{{ db_admin_user }}"
         password: "{{ db_admin_password }}"
         priv: "*.*:ALL"
