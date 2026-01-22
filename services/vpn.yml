@@ -23,7 +23,7 @@
     - name: Generate wg public key
       command: wg pubkey
       args:
-        stdin: "{{ lookup('file', /etc/wireguard/privatekey) }}"
+        stdin: "{{ lookup('ansible.builtin.pipe', 'cat /etc/wireguard/privatekey') }}"
       register: wg_pubkey
       changed_when: false
 
