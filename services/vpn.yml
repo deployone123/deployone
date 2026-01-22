@@ -30,7 +30,7 @@
         register: wg_public_key_file
 
     - set_fact:
-      wireguard_public_key: "{{ wg_public_key_file.content | b64decode | trim }}"
+        wireguard_public_key: "{{ wg_public_key_file.content | b64decode | trim }}"
 
     - name: Deploy wg config
       template:
