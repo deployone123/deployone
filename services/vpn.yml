@@ -24,8 +24,13 @@
         path: /etc/wireguard/privatekey
         mode: '0600'
 
+    - name: Read WireGuard public key
+      slurp:
+        src: /etc/wireguard/publickey
+        register: wg_public_key_file
+
     - set_fact:
-        wireguard_public_key: "{{ publickey.stdout }}"
+      wireguard_public_key: "{{ wg_public_key_file.content | b64decode | trim }}"
 
     - name: Deploy wg config
       template:
