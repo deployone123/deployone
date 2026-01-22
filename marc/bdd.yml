@@ -1,7 +1,7 @@
 ---
 - name: Instalación y configuración de MariaDB
   hosts: dns
-  become: root
+  remote_user: root
   vars:
     db_name: ejemplo_db
     db_user: ejemplo_user
