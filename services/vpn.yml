@@ -1,0 +1,37 @@
+- name: Install wireguard
+  hosts: test
+  remote_user: root
+
+  tasks:
+    - name: Installing wireguard
+      package:
+        name: wireguard
+        state: present
+
+    - name: Generate wg private key
+      community.crypto.openssl_privatekey:
+        path: /etc/wireguard/privatekey
+        type: ed25519
+        mode: '0600'
+
+    - name: Generate wg public key
+      command: wg pubkey
+      args:
+        stdin: "{{ lookup('file', '/etc/wireguard/privatekey') }}"
+      register: wg_pubkey
+      changed_when: false
+
+    - set_fact:
+        wireguard_public_key: "{{ wg_pubkey.stdout }}"
+
+    - name: Deploy wg config
+      template:
+        src: vpnserver.conf.j2
+        dest: /etc/wireguard/wg0.conf
+        mode: '06000'
+
+    - name: Enable wg
+      systemd:
+        name: wg-quick@wg0
+        enabled: true
+        state: started
