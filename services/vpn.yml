@@ -14,16 +14,16 @@
           - python3-cryptography
         state: present
 
-    - name: Generate wg private key
-      community.crypto.openssl_privatekey:
+    - name: Generate WireGuard keypair
+      shell: wg genkey | tee /etc/wireguard/privatekey | wg pubkey > /etc/wireguard/publickey
+      args:
+        creates: /etc/wireguard/privatekey
+
+    - name: Secure WireGuard private key
+      file:
         path: /etc/wireguard/privatekey
-        type: Ed25519
         mode: '0600'
 
-    - name: Generate WireGuard public key
-      shell: wg pubkey < /etc/wireguard/privatekey
-      register: wg_pubkey
-      changed_when: false
 
     - set_fact:
         wireguard_public_key: "{{ wg_pubkey.stdout }}"
