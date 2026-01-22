@@ -27,7 +27,7 @@
     - name: Read WireGuard public key
       slurp:
         src: /etc/wireguard/publickey
-        register: wg_public_key_file
+      register: wg_public_key_file
 
     - set_fact:
         wireguard_public_key: "{{ wg_public_key_file.content | b64decode | trim }}"
