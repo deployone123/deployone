@@ -1,6 +1,6 @@
 ---
 - name: Instalación y configuración de MariaDB
-  hosts: db_servers
+  hosts: dns
   become: true
   vars:
     db_name: ejemplo_db
