@@ -31,16 +31,17 @@
         state: present
 
     - name: Crear usuario administrador de MariaDB para Ansible
+      # Se conecta usando auth_socket de root
       community.mysql.mysql_user:
         login_user: root
-        login_password: ""       # root con auth_socket no necesita contraseña
+        login_password: ""  
         name: "{{ db_admin_user }}"
         password: "{{ db_admin_password }}"
         priv: "*.*:ALL"
         host: "localhost"
         state: present
 
-    - name: Crear base de datos
+    - name: Crear base de datos usando usuario administrador
       community.mysql.mysql_db:
         login_user: "{{ db_admin_user }}"
         login_password: "{{ db_admin_password }}"
@@ -48,7 +49,7 @@
         state: present
         encoding: utf8mb4
 
-    - name: Crear usuario y darle permisos en la base de datos
+    - name: Crear usuario de aplicación y darle permisos en la base
       community.mysql.mysql_user:
         login_user: "{{ db_admin_user }}"
         login_password: "{{ db_admin_password }}"
