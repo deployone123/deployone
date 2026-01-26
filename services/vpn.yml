@@ -1,5 +1,5 @@
 - name: Install wireguard
-  hosts: vpn_servers
+  hosts: vpn_hub,vpn_spokes
   remote_user: root
 
   tasks:
