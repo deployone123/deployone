@@ -2,10 +2,25 @@
 Address = {{ wg_ip }}/24
 PrivateKey = {{ wg_private_key }}
 ListenPort = 51820
+SaveConfig = true
 
-{% for host in groups['vpn_servers'] if host != inventory_hostname %}
+{# This host is the HUB, so it gets all spokes as peers #}
+{% if inventory_hostname in groups['vpn_hub'] %}
+{% for spoke in groups['vpn_spokes'] %}
 [Peer]
-PublicKey = {{ hostvars[host].wg_public_key }}
-AllowedIPs = {{ hostvars[host].wg_ip }}/32
-Endpoint = {{ hostvars[host].ansible_host }}:51820
+# Peer: {{ spoke }}
+PublicKey = {{ hostvars[spoke].wg_public_key }}
+AllowedIPs = {{ hostvars[spoke].wg_ip }}/32
 {% endfor %}
+
+{# This host is a SPOKE, so it only gets the hub as a peer #}
+{% elif inventory_hostname in groups['vpn_spokes'] %}
+{% for hub in groups['vpn_hub'] %}
+[Peer]
+# Peer: {{ hub }}
+PublicKey = {{ hostvars[hub].wg_public_key }}
+# This allows traffic for the entire VPN subnet to be routed via the hub
+AllowedIPs = 10.10.0.0/24 
+Endpoint = {{ hostvars[hub].ansible_host }}:51820
+{% endfor %}
+{% endif %}
