@@ -1,13 +1,11 @@
 [Interface]
 Address = {{ wg_ip }}/24
-PrivateKey = {{ lookup('file', '/etc/wireguard/privatekey') }}
+PrivateKey = {{ wg_private_key }}
 ListenPort = 51820
 
-{% for host in groups['wireguard'] if host != inventory_hostname %}
+{% for host in groups['vpn_servers'] if host != inventory_hostname %}
 [Peer]
-PublicKey = {{ hostvars[host].wireguard_public_key }}
+PublicKey = {{ hostvars[host].wg_public_key }}
 AllowedIPs = {{ hostvars[host].wg_ip }}/32
-{% if inventory_hostname == 'wg-server' %}
 Endpoint = {{ hostvars[host].ansible_host }}:51820
-{% endif %}
 {% endfor %}

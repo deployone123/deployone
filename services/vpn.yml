@@ -1,5 +1,5 @@
 - name: Install wireguard
-  hosts: test
+  hosts: vpn_servers
   remote_user: root
 
   tasks:
@@ -23,6 +23,21 @@
       file:
         path: /etc/wireguard/privatekey
         mode: '0600'
+
+    - name: Read WireGuard private key
+      slurp:
+        src: /etc/wireguard/privatekey
+      register: wg_private_key_file
+
+    - name: Read WireGuard public key
+      slurp:
+        src: /etc/wireguard/publickey
+      register: wg_public_key_file
+
+    - name: Set WireGuard key facts
+      set_fact:
+        wg_private_key: "{{ wg_private_key_file.content | b64decode | trim }}"
+        wg_public_key: "{{ wg_public_key_file.content | b64decode | trim }}"
 
     - name: Deploy wg config
       template:
