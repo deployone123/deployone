@@ -53,6 +53,13 @@
         enabled: true
         state: started
 
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        state: present
+        reload: yes
+
     - name: Install nftables
       package:
         name: nftables

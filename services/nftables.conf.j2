@@ -2,6 +2,34 @@
 
 flush ruleset
 
+table ip filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # allow loopback traffic
+        iifname "lo" accept
+
+        # allow established and related connections
+        ct state {established, related} accept
+
+        # allow SSH
+        tcp dport 22 accept
+
+        # allow WireGuard
+        udp dport 51820 accept
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+
+        # allow established and related connections
+        ct state {established, related} accept
+
+        # allow forwarding from WireGuard to the external interface
+        iifname "wg0" oifname "{{ ansible_default_ipv4.interface }}" accept
+    }
+}
+
 table ip nat {
     chain postrouting {
         type nat hook postrouting priority 100; policy accept;
