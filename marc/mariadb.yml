@@ -1,7 +1,7 @@
 ---
 - name: "Ensure MariaDB is installed and configured"
   hosts: all
-  become: true
+  remote_user: root
   vars:
     db_name: "prueba"
     db_user: "prueba1"
