@@ -19,8 +19,8 @@ AllowedIPs = {{ hostvars[spoke].wg_ip }}/32
 [Peer]
 # Peer: {{ hub }}
 PublicKey = {{ hostvars[hub].wg_public_key }}
-# This allows traffic for the entire VPN subnet to be routed via the hub
-AllowedIPs = 10.10.0.0/24 
+# This allows all traffic to be routed via the hub (full tunnel)
+AllowedIPs = 0.0.0.0/0 
 Endpoint = {{ hostvars[hub].ansible_host }}:51820
 {% endfor %}
 {% endif %}

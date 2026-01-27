@@ -45,7 +45,7 @@
       template:
         src: vpnserver.conf.j2
         dest: /etc/wireguard/wg0.conf
-        mode: '06000'
+        mode: '0600'
 
     - name: Enable wg
       systemd:
