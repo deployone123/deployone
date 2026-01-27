@@ -1,0 +1,43 @@
+---
+- name: "Ensure MariaDB is installed and configured"
+  hosts: all
+  become: true
+  vars:
+    db_name: "prueba"
+    db_user: "prueba1"
+    db_password: "prueba1"
+  tasks:
+    # This playbook assumes a Debian/Ubuntu based system. 
+    # If you are using a different OS, you will need to adjust the package name.
+    - name: "Install MariaDB server"
+      ansible.builtin.package:
+        name: mariadb-server
+        state: present
+
+    - name: "Start and enable MariaDB service"
+      ansible.builtin.service:
+        name: mariadb
+        state: started
+        enabled: true
+
+    # This playbook assumes that you have pip installed on the target machine.
+    - name: "Install pymysql"
+      ansible.builtin.pip:
+        name: pymysql
+        state: present
+
+    # This playbook assumes that the community.mysql collection is installed.
+    # You can install it with: ansible-galaxy collection install community.mysql
+    - name: "Create database"
+      community.mysql.mysql_db:
+        name: "{{ db_name }}"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: "Create database user"
+      community.mysql.mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        priv: "{{ db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
