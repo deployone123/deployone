@@ -20,7 +20,11 @@
         state: started
         enabled: true
 
-    # This playbook assumes that you have pip installed on the target machine.
+    - name: "Install pip"
+      ansible.builtin.package:
+        name: python3-pip
+        state: present
+
     - name: "Install pymysql"
       ansible.builtin.pip:
         name: pymysql
