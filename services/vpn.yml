@@ -64,6 +64,13 @@
       package:
         name: nftables
         state: present
+      when: inventory_hostname in groups['vpn_hub']
+
+    - name: Install resolvconf on spokes
+      package:
+        name: resolvconf
+        state: present
+      when: inventory_hostname in groups['vpn_spokes']
 
     - name: Configure nftables for NAT
       template:
@@ -73,12 +80,14 @@
         group: root
         mode: '0644'
       notify: restart nftables
+      when: inventory_hostname in groups['vpn_hub']
 
     - name: Enable nftables service
       systemd:
         name: nftables
         enabled: true
         state: started
+      when: inventory_hostname in groups['vpn_hub']
 
   handlers:
     - name: restart nftables

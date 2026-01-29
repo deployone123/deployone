@@ -4,6 +4,7 @@
 Address = {{ wg_ip }}/24
 PrivateKey = {{ wg_private_key }}
 ListenPort = 51820
+
 {% for spoke in groups['vpn_spokes'] %}
 [Peer]
 # Peer: {{ spoke }}
@@ -18,6 +19,7 @@ PersistentKeepalive = 25
 PrivateKey = {{ wg_private_key }}
 Address = {{ wg_ip }}/24
 DNS = 1.1.1.1
+
 {% for hub in groups['vpn_hub'] %}
 [Peer]
 # Peer: {{ hub }}
