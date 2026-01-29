@@ -9,6 +9,8 @@ table ip filter {
 
     chain forward {
         type filter hook forward priority 0; policy accept;
+        ct state established,related accept
+        iifname "wg0" oifname "{{ ansible_default_ipv4.interface }}" accept
     }
 
     chain output {
