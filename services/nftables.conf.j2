@@ -21,6 +21,7 @@ table ip filter {
 table ip nat {
     chain postrouting {
         type nat hook postrouting priority 100; policy accept;
-        ip saddr {{ wireguard_network }} oifname "{{ ansible_default_ipv4.interface }}" masquerade
+            oifname "{{ ansible_default_ipv4.interface }}" masquerade
     }
 }
+
