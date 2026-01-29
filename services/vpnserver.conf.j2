@@ -1,26 +1,29 @@
+{# This host is the HUB, so it gets all spokes as peers #}
+{% if inventory_hostname in groups['vpn_hub'] %}
 [Interface]
 Address = {{ wg_ip }}/24
 PrivateKey = {{ wg_private_key }}
 ListenPort = 51820
-SaveConfig = true
-
-{# This host is the HUB, so it gets all spokes as peers #}
-{% if inventory_hostname in groups['vpn_hub'] %}
 {% for spoke in groups['vpn_spokes'] %}
 [Peer]
 # Peer: {{ spoke }}
 PublicKey = {{ hostvars[spoke].wg_public_key }}
 AllowedIPs = {{ hostvars[spoke].wg_ip }}/32
+PersistentKeepalive = 25
 {% endfor %}
 
 {# This host is a SPOKE, so it only gets the hub as a peer #}
 {% elif inventory_hostname in groups['vpn_spokes'] %}
+[Interface]
+PrivateKey = {{ wg_private_key }}
+Address = {{ wg_ip }}/24
+DNS = 1.1.1.1
 {% for hub in groups['vpn_hub'] %}
 [Peer]
 # Peer: {{ hub }}
 PublicKey = {{ hostvars[hub].wg_public_key }}
-# This allows all traffic to be routed via the hub (full tunnel)
-AllowedIPs = 0.0.0.0/0 
 Endpoint = {{ hostvars[hub].ansible_host }}:51820
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 25
 {% endfor %}
 {% endif %}
