@@ -47,6 +47,12 @@
         dest: /etc/wireguard/wg0.conf
         mode: '0600'
 
+    - name: Install resolvconf on spokes
+      package:
+        name: resolvconf
+        state: present
+      when: inventory_hostname in groups['vpn_spokes']
+
     - name: Enable wg
       systemd:
         name: wg-quick@wg0
@@ -65,12 +71,6 @@
         name: nftables
         state: present
       when: inventory_hostname in groups['vpn_hub']
-
-    - name: Install resolvconf on spokes
-      package:
-        name: resolvconf
-        state: present
-      when: inventory_hostname in groups['vpn_spokes']
 
     - name: Configure nftables for NAT
       template:
