@@ -4,29 +4,15 @@ flush ruleset
 
 table ip filter {
     chain input {
-        type filter hook input priority 0; policy drop;
-
-        # allow loopback traffic
-        iifname "lo" accept
-
-        # allow established and related connections
-        ct state {established, related} accept
-
-        # allow SSH
-        tcp dport 22 accept
-
-        # allow WireGuard
-        udp dport 51820 accept
+        type filter hook input priority 0; policy accept;
     }
 
     chain forward {
-        type filter hook forward priority 0; policy drop;
+        type filter hook forward priority 0; policy accept;
+    }
 
-        # allow established and related connections
-        ct state {established, related} accept
-
-        # allow forwarding from WireGuard to the external interface
-        iifname "wg0" oifname "{{ ansible_default_ipv4.interface }}" accept
+    chain output {
+        type filter hook output priority 0; policy accept;
     }
 }
 
