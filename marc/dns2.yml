@@ -1,0 +1,28 @@
+- name: Desplegar DNSMasq en Docker
+  hosts: dns
+  become: true # Necesario para interactuar con el socket de Docker
+
+  tasks:
+    - name: Asegurar que el directorio de configuración existe en el host
+      file:
+        path: /opt/dnsmasq
+        state: directory
+        mode: '0755'
+
+    - name: Enviar archivo de configuración al host
+      template:
+        src: ./dhcp.conf
+        dest: /opt/dnsmasq/dnsmasq.conf
+
+    - name: Crear y arrancar el contenedor de dnsmasq
+      community.docker.docker_container:
+        name: dnsmasq_service
+        image: strm/dnsmasq # Imagen popular y ligera para dnsmasq
+        state: started
+        restart_policy: always
+        # Para que DNS/DHCP funcione, el contenedor suele necesitar privilegios de red
+        capabilities:
+          - NET_ADMIN
+        network_mode: host 
+        volumes:
+          - /opt/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro
