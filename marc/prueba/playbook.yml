@@ -1,0 +1,29 @@
+---
+- name: Deploy DNS Service for {{ company_name }}
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - vars/client_data.yml
+
+  tasks:
+    - name: Provision Proxmox resources
+      include_role:
+        name: proxmox_provision
+
+    - name: Add new VM to dynamic inventory
+      add_host:
+        name: "{{ vm_ip | split('/') | first }}"
+        groups: new_dns_server
+        ansible_user: "root"
+        # ansible_password: "YOUR_TEMPLATE_ROOT_PASSWORD"  # Replace with actual password
+
+- name: Configure DNS Service (Bind9)
+  hosts: new_dns_server
+  gather_facts: yes
+  vars_files:
+    - vars/client_data.yml
+
+  tasks:
+    - name: Configure Bind9
+      include_role:
+        name: bind9_config
