@@ -3,6 +3,7 @@
   gather_facts: false
   vars:
     proxmox_host: "10.1.100.100"
+    proxmox_user: "root@pam"
     proxmox_token_id: "root@pam!ansible"
     proxmox_token_secret: "ef24e557-b99f-4252-9cd4-fb70f1645fcd"
     vmid: 1001
@@ -17,6 +18,7 @@
         vmid: "{{ vmid }}"
         node: "{{ node }}"
         api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
         api_token_id: "{{ proxmox_token_id }}"
         api_token_secret: "{{ proxmox_token_secret }}"
         validate_certs: false
@@ -34,6 +36,7 @@
         vmid: "{{ vmid }}"
         node: "{{ node }}"
         api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
         api_token_id: "{{ proxmox_token_id }}"
         api_token_secret: "{{ proxmox_token_secret }}"
         validate_certs: false
