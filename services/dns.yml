@@ -9,7 +9,7 @@
     vmid: 1001
     hostname: "dns-server"
     node: "deployone"
-    template: "local:debian-13-standard_13.1-2_amd64.tar.zst"
+    template: "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
     storage: "local-lvm"
 
   tasks:
