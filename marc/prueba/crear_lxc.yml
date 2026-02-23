@@ -1,32 +1,46 @@
 ---
-- name: Desplegar Contenedor LXC
-  hosts: proxmox_servers
+- name: Despliegue de LXC con API Token
+  hosts: all
   gather_facts: no
-  
+
+  vars:
+    # --- Datos del API Token ---
+    pve_api_host: "10.1.100.100"
+    pve_api_user: "root@pam!ansible"  # Nombre completo del Token ID
+    pve_api_token_id: "ansible"       # Solo la parte después del '!'
+    pve_api_token_secret: "ef24e557-b99f-4252-9cd4-fb70f1645fcd" # El código secreto
+
+    # --- Configuración del Contenedor ---
+    lxc_vmid: 200
+    pve_node: "pve"
+    lxc_hostname: "ct-seguro-01"
+    lxc_template: "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
+    lxc_ip_config: "name=eth0,gw=192.168.1.1,ip=192.168.1.200/24,bridge=vmbr0"
+
   tasks:
-    - name: Crear LXC básico
+    - name: "Crear LXC usando autenticación por Token"
       community.general.proxmox:
-        # Credenciales de la API (puedes usar token o password)
-        api_host: "{{ inventory_hostname }}"
-        api_user: "root@pam"
-        api_password: "TU_PASSWORD_AQUI"
+        # Configuración de Conexión
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token_id }}"
+        api_token_secret: "{{ pve_api_token_secret }}"
+        validate_certs: no
         
-        # Configuración del contenedor
-        vmid: 200
-        node: pve                 # Nombre del nodo en Proxmox
-        hostname: ct-ansible-test
-        password: "PasswordSegura123"
+        # Configuración del Recurso
+        vmid: "{{ lxc_vmid }}"
+        node: "{{ pve_node }}"
+        hostname: "{{ lxc_hostname }}"
+        password: "PasswordDelContenedor123" # Password interna del LXC
         
-        # Recurso y Plantilla
-        ostemplate: "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
-        storage: local-lvm
+        ostemplate: "{{ lxc_template }}"
+        storage: "local-lvm"
         disk: 10
         memory: 1024
-        cores: 2
+        cores: 1
         
-        # Red
         netif:
-          net0: "name=eth0,gw=192.168.1.1,ip=192.168.1.200/24,bridge=vmbr0"
+          net0: "{{ lxc_ip_config }}"
         
         unprivileged: yes
         state: present
