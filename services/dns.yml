@@ -13,7 +13,7 @@
 
   tasks:
     - name: Create Debian 13 LXC
-      community.proxmox:
+      community.proxmox.proxmox:
         vmid: "{{ vmid }}"
         node: "{{ node }}"
         api_host: "{{ proxmox_host }}"
@@ -29,7 +29,7 @@
         state: present
 
     - name: Wait for container to start
-      community.proxmox:
+      community.proxmox.proxmox:
         vmid: "{{ vmid }}"
         node: "{{ node }}"
         api_host: "{{ proxmox_host }}"
