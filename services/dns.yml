@@ -76,6 +76,7 @@
       package:
         name: dnsmasq
         state: present
+        update_cache: true
 
     - name: Ensure it's started and enabled
       service:
