@@ -3,8 +3,8 @@
   gather_facts: false
   vars:
     proxmox_host: "10.1.100.100"
-    proxmox_user: "root@pam"
-    proxmox_password: "ef24e557-b99f-4252-9cd4-fb70f1645fcd"
+    proxmox_token_id: "root@pam!ansible"
+    proxmox_token_secret: "ef24e557-b99f-4252-9cd4-fb70f1645fcd"
     vmid: 1001
     hostname: "dns-server"
     node: "deployone"
@@ -17,8 +17,9 @@
         vmid: "{{ vmid }}"
         node: "{{ node }}"
         api_host: "{{ proxmox_host }}"
-        api_user: "{{ proxmox_user }}"
-        api_password: "{{ proxmox_password }}"
+        api_token_id: "{{ proxmox_token_id }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        validate_certs: false
         ostemplate: "{{ template }}"
         hostname: "{{ hostname }}"
         password: "securepassword" # Set a default password
@@ -33,8 +34,9 @@
         vmid: "{{ vmid }}"
         node: "{{ node }}"
         api_host: "{{ proxmox_host }}"
-        api_user: "{{ proxmox_user }}"
-        api_password: "{{ proxmox_password }}"
+        api_token_id: "{{ proxmox_token_id }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        validate_certs: false
         state: started
 
     - name: Get LXC IP address
@@ -43,7 +45,7 @@
       retries: 10
       delay: 5
       until: "((lxc_status.stdout | from_json).net0.ip | length) > 0"
-      delegate_to: "{{ proxmox_host }}" # This assumes Ansible can SSH to Proxmox host
+      delegate_to: "{{ proxmox_host }}"
 
     - name: Add new LXC to inventory
       add_host:
@@ -54,7 +56,7 @@
 
 - name: Install dnsmasq inside the LXC
   hosts: dns_containers
-  gather_facts: false # Might need to wait for SSH to be ready
+  gather_facts: false
   
   tasks:
     - name: Wait for SSH to be available
