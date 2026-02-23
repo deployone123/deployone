@@ -24,7 +24,7 @@
         validate_certs: false
         ostemplate: "{{ template }}"
         hostname: "{{ hostname }}"
-        password: "securepassword"
+        password: "alumnat"
         storage: "{{ storage }}"
         unprivileged: true
         netif:
@@ -50,12 +50,18 @@
       until: "lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | list | length > 0"
       delegate_to: "{{ proxmox_host }}"
 
+    - name: Enable Root Login via SSH
+      shell: |
+        pct exec {{ vmid }} -- sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+        pct exec {{ vmid }} -- systemctl restart ssh
+      delegate_to: "{{ proxmox_host }}"
+
     - name: Add new LXC to inventory
       add_host:
         name: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | first).inet.split('/')[0] }}"
         groups: dns_containers
         ansible_user: root
-        ansible_ssh_pass: "securepassword"
+        ansible_ssh_pass: "alumnat"
 
 - name: Install dnsmasq inside the LXC
   hosts: dns_containers
