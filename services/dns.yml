@@ -1,8 +1,67 @@
-- name: Install dnsmasq
-  hosts: test
-  remote_user: root
+- name: Create LXC container on Proxmox
+  hosts: localhost
+  gather_facts: false
+  vars:
+    proxmox_host: "10.1.100.100"
+    proxmox_user: "root@pam"
+    proxmox_password: "ef24e557-b99f-4252-9cd4-fb70f1645fcd"
+    vmid: 1001
+    hostname: "dns-server"
+    node: "deployone"
+    template: "local:debian-13-standard_13.1-2_amd64.tar.zst"
+    storage: "local-lvm"
 
   tasks:
+    - name: Create Debian 13 LXC
+      community.general.proxmox:
+        vmid: "{{ vmid }}"
+        node: "{{ node }}"
+        api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_password: "{{ proxmox_password }}"
+        api_token_id: "{{ proxmox_user }}"
+        api_token_secret: "{{ proxmox_password }}"
+        ostemplate: "{{ template }}"
+        hostname: "{{ hostname }}"
+        password: "securepassword" # Set a default password
+        storage: "{{ storage }}"
+        unprivileged: true
+        net0: "name=eth0,bridge=vmbr0,ip=dhcp"
+        state: present
+
+    - name: Wait for container to start
+      community.general.proxmox:
+        vmid: "{{ vmid }}"
+        node: "{{ node }}"
+        api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_password: "{{ proxmox_password }}"
+        state: started
+
+    - name: Get LXC IP address
+      shell: "pvesh get /nodes/{{ node }}/lxc/{{ vmid }}/status/current --output-format json"
+      register: lxc_status
+      retries: 10
+      delay: 5
+      until: "((lxc_status.stdout | from_json).net0.ip | length) > 0"
+      delegate_to: "{{ proxmox_host }}" # This assumes Ansible can SSH to Proxmox host
+
+    - name: Add new LXC to inventory
+      add_host:
+        name: "{{ (lxc_status.stdout | from_json).net0.ip.split('/')[0] }}"
+        groups: dns_containers
+        ansible_user: root
+        ansible_ssh_pass: "securepassword"
+
+- name: Install dnsmasq inside the LXC
+  hosts: dns_containers
+  gather_facts: false # Might need to wait for SSH to be ready
+  
+  tasks:
+    - name: Wait for SSH to be available
+      wait_for_connection:
+        timeout: 300
+
     - name: Installing dnsmasq
       package:
         name: dnsmasq
