@@ -1,0 +1,32 @@
+---
+- name: Desplegar Contenedor LXC
+  hosts: proxmox_servers
+  gather_facts: no
+  
+  tasks:
+    - name: Crear LXC básico
+      community.general.proxmox:
+        # Credenciales de la API (puedes usar token o password)
+        api_host: "{{ inventory_hostname }}"
+        api_user: "root@pam"
+        api_password: "TU_PASSWORD_AQUI"
+        
+        # Configuración del contenedor
+        vmid: 200
+        node: pve                 # Nombre del nodo en Proxmox
+        hostname: ct-ansible-test
+        password: "PasswordSegura123"
+        
+        # Recurso y Plantilla
+        ostemplate: "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
+        storage: local-lvm
+        disk: 10
+        memory: 1024
+        cores: 2
+        
+        # Red
+        netif:
+          net0: "name=eth0,gw=192.168.1.1,ip=192.168.1.200/24,bridge=vmbr0"
+        
+        unprivileged: yes
+        state: present
