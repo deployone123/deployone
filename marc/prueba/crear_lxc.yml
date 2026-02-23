@@ -2,7 +2,7 @@
 - name: Despliegue de LXC con API Token
   hosts: all
   gather_facts: no
-
+ 
   vars:
     # --- Datos del API Token ---
     pve_api_host: "10.1.100.100"
@@ -12,14 +12,14 @@
 
     # --- Configuración del Contenedor ---
     lxc_vmid: 200
-    pve_node: "pve"
+    pve_node: "deployone"
     lxc_hostname: "ct-seguro-01"
     lxc_template: "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
     lxc_ip_config: "name=eth0,gw=192.168.1.1,ip=192.168.1.200/24,bridge=vmbr0"
 
   tasks:
     - name: "Crear LXC usando autenticación por Token"
-      community.general.proxmox:
+      community.proxmox.proxmox:
         # Configuración de Conexión
         api_host: "{{ pve_api_host }}"
         api_user: "{{ pve_api_user }}"
