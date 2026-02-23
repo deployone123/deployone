@@ -13,24 +13,23 @@
 
   tasks:
     - name: Create Debian 13 LXC
-      community.general.proxmox:
+      community.proxmox:
         vmid: "{{ vmid }}"
         node: "{{ node }}"
         api_host: "{{ proxmox_host }}"
         api_user: "{{ proxmox_user }}"
         api_password: "{{ proxmox_password }}"
-        api_token_id: "{{ proxmox_user }}"
-        api_token_secret: "{{ proxmox_password }}"
         ostemplate: "{{ template }}"
         hostname: "{{ hostname }}"
         password: "securepassword" # Set a default password
         storage: "{{ storage }}"
         unprivileged: true
-        net0: "name=eth0,bridge=vmbr0,ip=dhcp"
+        netif:
+          net0: "name=eth0,bridge=vmbr0,ip=dhcp"
         state: present
 
     - name: Wait for container to start
-      community.general.proxmox:
+      community.proxmox:
         vmid: "{{ vmid }}"
         node: "{{ node }}"
         api_host: "{{ proxmox_host }}"
