@@ -4,7 +4,7 @@
   vars:
     proxmox_host: "10.1.100.100"
     proxmox_user: "root@pam"
-    proxmox_token_name: "ansible" # Just the part after '!'
+    proxmox_token_name: "ansible"
     proxmox_token_secret: "ef24e557-b99f-4252-9cd4-fb70f1645fcd"
     vmid: 1001
     hostname: "dns-server"
@@ -24,7 +24,7 @@
         validate_certs: false
         ostemplate: "{{ template }}"
         hostname: "{{ hostname }}"
-        password: "securepassword" # Set a default password
+        password: "securepassword"
         storage: "{{ storage }}"
         unprivileged: true
         netif:
@@ -43,16 +43,16 @@
         state: started
 
     - name: Get LXC IP address
-      shell: "pvesh get /nodes/{{ node }}/lxc/{{ vmid }}/status/current --output-format json"
-      register: lxc_status
-      retries: 10
+      shell: "pvesh get /nodes/{{ node }}/lxc/{{ vmid }}/interfaces --output-format json"
+      register: lxc_interfaces
+      retries: 20
       delay: 5
-      until: "((lxc_status.stdout | from_json).net0.ip | length) > 0"
+      until: "lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | list | length > 0"
       delegate_to: "{{ proxmox_host }}"
 
     - name: Add new LXC to inventory
       add_host:
-        name: "{{ (lxc_status.stdout | from_json).net0.ip.split('/')[0] }}"
+        name: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | first).inet.split('/')[0] }}"
         groups: dns_containers
         ansible_user: root
         ansible_ssh_pass: "securepassword"
