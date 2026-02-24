@@ -1,8 +1,6 @@
 - name: Create LXC container on Proxmox
   hosts: localhost
   gather_facts: false
-  vars_files:
-    - vars/secrets.yml
   vars:
     proxmox_host: "10.1.100.100"
     proxmox_user: "root@pam"
@@ -13,9 +11,9 @@
     storage: "local-lvm"
 
   tasks:
-    - name: Debug secrets
-      debug:
-        msg: "Token secret is {{ proxmox_token_secret | default('UNDEFINED') }}"
+    - name: Load secrets
+      include_vars:
+        file: vars/secrets.yml
 
     - name: Get next available VMID via shell (highest >= 1000 + 1)
       shell: |
