@@ -11,7 +11,7 @@
     storage: "local-lvm"
 
   tasks:
-    - name: Load secrets
+    - name: Load secrets file
       include_vars:
         file: vars/secrets.yml
 
