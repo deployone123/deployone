@@ -1,8 +1,81 @@
-- name: Install nginx
-  hosts: test
-  remote_user: root
+- name: Create LXC container on Proxmox
+  hosts: localhost
+  gather_facts: false
+  vars:
+    proxmox_host: "10.1.100.100"
+    proxmox_user: "root@pam"
+    proxmox_token_name: "ansible"
+    hostname: "web-server"
+    node: "deployone"
+    template: "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
+    storage: "local-lvm"
 
   tasks:
+    - name: Load secrets file
+      include_vars:
+        file: vars/secrets.yml
+
+    - name: Get next available VMID via shell (highest >= 1000 + 1)
+      shell: |
+        MAX_ID=$(pvesh get /cluster/resources --type vm --output-format yaml | grep "vmid:" | grep -oE "[0-9]+" | grep -E "^[1-9][0-9]{3,}$" | sort -n | tail -n 1)
+        echo $(( ${MAX_ID:-1000} + 1 ))
+      register: next_vmid_shell
+      delegate_to: "{{ proxmox_host }}"
+
+    - name: Set vmid fact
+      set_fact:
+        vmid: "{{ next_vmid_shell.stdout | trim }}"
+
+    - name: Create Debian 13 LXC
+      community.proxmox.proxmox:
+        vmid: "{{ vmid }}"
+        node: "{{ node }}"
+        api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_token_id: "{{ proxmox_token_name }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        validate_certs: false
+        ostemplate: "{{ template }}"
+        hostname: "{{ hostname }}"
+        password: "{{ lxc_password }}"
+        storage: "{{ storage }}"
+        unprivileged: true
+        netif:
+          net0: "name=eth0,bridge=vmbr0,ip=dhcp"
+        state: present
+
+    - name: Wait for container to start
+      community.proxmox.proxmox:
+        vmid: "{{ vmid }}"
+        node: "{{ node }}"
+        api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_token_id: "{{ proxmox_token_name }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        validate_certs: false
+        state: started
+
+    - name: Get LXC IP address
+      shell: "pvesh get /nodes/{{ node }}/lxc/{{ vmid }}/interfaces --output-format json"
+      register: lxc_interfaces
+      retries: 20
+      delay: 5
+      until: "lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | list | length > 0"
+      delegate_to: "{{ proxmox_host }}"
+
+    - name: Enable Root Login via SSH
+      shell: |
+        pct exec {{ vmid }} -- sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+        pct exec {{ vmid }} -- systemctl restart ssh
+      delegate_to: "{{ proxmox_host }}"
+
+    - name: Add new LXC to inventory
+      add_host:
+        name: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | first).inet.split('/')[0] }}"
+        groups: dns_containers
+        ansible_user: root
+        ansible_ssh_pass: "{{ lxc_password }}"
+
     - name: Installing nginx
       package:
         name: nginx

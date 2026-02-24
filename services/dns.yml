@@ -53,7 +53,6 @@
         api_token_id: "{{ proxmox_token_name }}"
         api_token_secret: "{{ proxmox_token_secret }}"
         validate_certs: false
-        hostname: "{{ hostname }}"
         state: started
 
     - name: Get LXC IP address
