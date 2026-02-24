@@ -73,14 +73,24 @@
     - name: Add new LXC to inventory
       add_host:
         name: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | first).inet.split('/')[0] }}"
-        groups: dns_containers
+        groups: web_containers
         ansible_user: root
         ansible_ssh_pass: "{{ lxc_password }}"
+
+- name: Install Nginx inside the LXC
+  hosts: web_containers
+  gather_facts: false
+  
+  tasks:
+    - name: Wait for SSH to be available
+      wait_for_connection:
+        timeout: 300
 
     - name: Installing nginx
       package:
         name: nginx
         state: present
+        update_cache: true
 
     - name: Ensure it's started and enabled
       service:
