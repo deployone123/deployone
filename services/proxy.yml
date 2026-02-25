@@ -40,6 +40,9 @@
         password: "{{ lxc_password }}"
         storage: "{{ storage }}"
         unprivileged: true
+        features:
+          - nesting=1
+          - keyctl=1
         netif:
           net0: "name=eth0,bridge=vmbr0,ip=dhcp"
         state: present
@@ -74,6 +77,18 @@
       set_fact:
         lxc_ip: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | first).inet.split('/')[0] }}"
 
+    - name: Ensure .ssh directory exists
+      file:
+        path: ~/.ssh
+        state: directory
+        mode: '0700'
+
+    - name: Ensure known_hosts file exists
+      file:
+        path: ~/.ssh/known_hosts
+        state: touch
+        mode: '0644'
+
     - name: Remove old host key from known_hosts
       shell: "ssh-keygen -f ~/.ssh/known_hosts -R {{ lxc_ip }}"
       ignore_errors: true
@@ -97,11 +112,19 @@
       wait_for_connection:
         timeout: 300
 
-    - name: Install docker-compose
+    - name: Install Docker and docker-compose
       package:
         update_cache: true
-        name: docker-compose
+        name:
+          - docker.io
+          - docker-compose
         state: present
+
+    - name: Ensure Docker is started
+      service:
+        name: docker
+        state: started
+        enabled: true
 
     - name: Create directory
       file:

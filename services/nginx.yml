@@ -80,7 +80,7 @@
 - name: Install Nginx inside the LXC
   hosts: web_containers
   gather_facts: false
-  
+
   tasks:
     - name: Wait for SSH to be available
       wait_for_connection:
