@@ -39,9 +39,10 @@
         ostemplate: "{{ template }}"
         hostname: "{{ hostname }}"
         password: "{{ lxc_password }}"
-        storage: "{{ storage }}"
+        disk_volume:
+          storage: "{{ storage }}"
+          size: "{{ storage_amount | int }}"
         unprivileged: true
-        disk: "{{ storage_amount }}"
         netif:
           net0: "name=eth0,bridge=vmbr0,ip=dhcp"
         state: present
