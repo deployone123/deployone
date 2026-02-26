@@ -9,6 +9,7 @@
     node: "deployone"
     template: "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
     storage: "local-lvm"
+    rootfs: "local-lvm:8"
 
   tasks:
     - name: Load secrets file
@@ -40,6 +41,7 @@
         password: "{{ lxc_password }}"
         storage: "{{ storage }}"
         unprivileged: true
+        rootfs: "{{ rootfs }}"
         netif:
           net0: "name=eth0,bridge=vmbr0,ip=dhcp"
         state: present
