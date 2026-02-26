@@ -61,8 +61,14 @@
       register: lxc_interfaces
       retries: 20
       delay: 5
-      until: "lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | list | length > 0"
+      # We ensure 'inet' exists and isn't empty
+      until: "(lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | first | default('')) != ''"
       delegate_to: "{{ proxmox_host }}"
+
+    - name: Set Clean IP Fact
+      set_fact:
+        # This splits "192.168.1.50/24" at the "/" and takes the first part
+        container_ip: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | first).split('/')[0] }}"
 
     - name: Enable Root Login via SSH
       shell: |
@@ -86,7 +92,7 @@
       wait_for:
           host: "{{ container_ip }}"
           port: 22
-          delay: 5          # Wait 5 seconds before first check
+          delay: 5
           timeout: 300
           state: started
 
