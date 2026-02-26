@@ -11,6 +11,10 @@
     storage: "local-lvm"
 
   tasks:
+    - name: Load secrets file
+      include_vars:
+        file: vars/secrets.yml
+
     - name: Get next available VMID via shell (highest >= 1000 + 1)
       shell: |
         MAX_ID=$(pvesh get /cluster/resources --type vm --output-format yaml | grep "vmid:" | grep -oE "[0-9]+" | grep -E "^[1-9][0-9]{3,}$" | sort -n | tail -n 1)
