@@ -103,6 +103,7 @@
         delay: 5
         timeout: 300
         state: started
+      delegate_to: localhost
 
     - name: Verify SSH connection is functional
       wait_for_connection:
