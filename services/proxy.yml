@@ -43,6 +43,8 @@
           storage: "{{ storage }}"
           size: "{{ storage_amount | int }}"
         unprivileged: true
+        features:
+          - nesting=1
         netif:
           net0: "name=eth0,bridge=vmbr0,ip=dhcp"
         state: present
