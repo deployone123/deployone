@@ -9,6 +9,7 @@
     node: "deployone"
     template: "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
     storage: "local-lvm"
+    storage_amount: "4"
 
   tasks:
     - name: Load secrets file
@@ -38,7 +39,9 @@
         ostemplate: "{{ template }}"
         hostname: "{{ hostname }}"
         password: "{{ lxc_password }}"
-        storage: "{{ storage }}"
+        disk_volume:
+          storage: "{{ storage }}"
+          size: "{{ storage_amount | int }}"
         unprivileged: true
         netif:
           net0: "name=eth0,bridge=vmbr0,ip=dhcp"
@@ -91,11 +94,12 @@
   tasks:
     - name: Wait for port 22 to become open
       wait_for:
-          host: "{{ container_ip }}"
-          port: 22
-          delay: 5
-          timeout: 300
-          state: started
+        host: "{{ container_ip }}"
+        port: 22
+        delay: 5
+        timeout: 300
+        state: started
+      delegate_to: localhost
 
     - name: Verify SSH connection is functional
       wait_for_connection:
