@@ -82,6 +82,7 @@
         groups: dns_containers
         ansible_user: root
         ansible_ssh_pass: "{{ lxc_password }}"
+        container_ip: "{{ container_ip }}"
 
 - name: Install dnsmasq inside the LXC
   hosts: dns_containers
