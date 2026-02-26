@@ -79,7 +79,7 @@
     - name: Add new LXC to inventory
       add_host:
         name: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | first).inet.split('/')[0] }}"
-        groups: dns_containers
+        groups: proxy_containers
         ansible_user: root
         ansible_ssh_pass: "{{ lxc_password }}"
         container_ip: "{{ container_ip }}"
