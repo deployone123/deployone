@@ -82,9 +82,19 @@
   gather_facts: false
   
   tasks:
-    - name: Wait for SSH to be available
+    - name: Wait for port 22 to become open
+      wait_for:
+          host: "{{ container_ip }}"
+          port: 22
+          delay: 5          # Wait 5 seconds before first check
+          timeout: 300
+          state: started
+
+    - name: Verify SSH connection is functional
       wait_for_connection:
-        timeout: 300
+           connect_timeout: 10
+           sleep: 5
+           timeout: 300
 
     - name: Installing dnsmasq
       package:
