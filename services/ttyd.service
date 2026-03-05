@@ -1,0 +1,11 @@
+[Unit]
+Description=Web Terminal
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/ttyd -p 7681 -W bash
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
