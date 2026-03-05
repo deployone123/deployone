@@ -136,3 +136,21 @@
       template:
         src: ./index.html
         dest: /var/www/html/index.html
+
+    - name: Download ttyd binary
+      get_url:
+        url: https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
+        dest: /usr/local/bin/ttyd
+        mode: '0755'
+
+    - name: Execute ttyd
+      template:
+        src: ./ttyd.service
+        dest: /etc/systemd/system/ttyd.service
+
+    - name: Start and enable ttyd
+      systemd:
+        name: ttyd
+        state: started
+        enabled: yes
+        daemon_reload: yes
