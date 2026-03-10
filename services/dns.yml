@@ -125,8 +125,8 @@
         dest: /etc/dnsmasq.d/dns.conf
     
     - name: Download ttyd binary
-      get_url: 
-        url: wget https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
+      get_url:
+        url: https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
         dest: /usr/local/bin/ttyd
         mode: '0755'
     
