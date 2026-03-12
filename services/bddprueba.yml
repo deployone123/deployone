@@ -1,6 +1,6 @@
 ---
 - name: Despliegue de MariaDB
-  hosts: bdd_servers
+  hosts: services
   become: yes  # Ejecuta como sudo
 
   vars:
