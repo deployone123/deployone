@@ -1,0 +1,44 @@
+---
+- name: Despliegue de MariaDB
+  hosts: bdd_servers
+  become: yes  # Ejecuta como sudo
+
+  vars:
+    # Definimos variables para que sea fácil de cambiar después
+    db_name: "produccion_db"
+    db_user: "admin_web"
+    db_pass: "CambiaEstaClave123!"
+
+  tasks:
+    - name: 1. Actualizar caché de APT
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: 2. Instalar MariaDB y dependencias
+      apt:
+        name:
+          - mariadb-server
+          - python3-pymysql
+        state: present
+
+    - name: 3. Iniciar el servicio MariaDB
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: 4. Crear la base de datos
+      mysql_db:
+        name: "{{ db_name }}"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: 5. Crear usuario con privilegios
+      mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_pass }}"
+        priv: "{{ db_name }}.*:ALL"
+        host: "%" # Permite conexión desde cualquier IP (ajustar si es necesario)
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
