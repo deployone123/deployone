@@ -1,7 +1,6 @@
 ---
 - name: Despliegue de MariaDB
   hosts: services
-  become: yes  # Ejecuta como sudo
 
   vars:
     # Definimos variables para que sea fácil de cambiar después
