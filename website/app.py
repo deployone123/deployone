@@ -2,22 +2,29 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import requests
 import functools
 import socket
-import sqlite3
-from werkzeug.security import generate_password_hash, check_password_hash
+import pymysql
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-goes-here' # Use a real secret key in production
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-goes-here')
 
 # Base URL for the Ansible FastAPI application
-ANSIBLE_API_BASE_URL = "http://answeb.deployone.test"
+ANSIBLE_API_BASE_URL = os.environ.get("ANSIBLE_API_BASE_URL", "http://answeb.deployone.test")
 
 # Authorized Proxy IP
-ALLOWED_PROXY_IP = "100.121.99.42"
+ALLOWED_PROXY_IP = os.environ.get("ALLOWED_PROXY_IP", "100.121.99.42")
 
 def get_db_connection():
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+    return pymysql.connect(
+        host=os.environ.get('DB_HOST', 'localhost'),
+        user=os.environ.get('DB_USER', 'admin'),
+        password=os.environ.get('DB_PASS', 'alumnat'),
+        database=os.environ.get('DB_NAME', 'website'),
+        cursorclass=pymysql.cursors.DictCursor
+    )
 
 def login_required(f):
     @functools.wraps(f)
@@ -35,8 +42,12 @@ def login():
         password = request.form.get('password')
         
         conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-        conn.close()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+                user = cursor.fetchone()
+        finally:
+            conn.close()
 
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['id']
@@ -61,11 +72,12 @@ def register():
             conn = get_db_connection()
             try:
                 hashed_password = generate_password_hash(password)
-                conn.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)',
-                            (username, hashed_password))
+                with conn.cursor() as cursor:
+                    cursor.execute('INSERT INTO users (username, password_hash) VALUES (%s, %s)',
+                                (username, hashed_password))
                 conn.commit()
                 return redirect(url_for('login'))
-            except sqlite3.IntegrityError:
+            except pymysql.err.IntegrityError:
                 error = f'User {username} is already registered.'
             finally:
                 conn.close()
@@ -86,13 +98,17 @@ def index():
 @login_required
 def get_machines():
     conn = get_db_connection()
-    if session.get('role') == 'admin':
-        machines = conn.execute('SELECT m.*, u.username as owner_name FROM machines m LEFT JOIN users u ON m.owner_id = u.id').fetchall()
-    else:
-        machines = conn.execute('SELECT * FROM machines WHERE owner_id = ?', (session['user_id'],)).fetchall()
-    conn.close()
+    try:
+        with conn.cursor() as cursor:
+            if session.get('role') == 'admin':
+                cursor.execute('SELECT m.*, u.username as owner_name FROM machines m LEFT JOIN users u ON m.owner_id = u.id')
+            else:
+                cursor.execute('SELECT * FROM machines WHERE owner_id = %s', (session['user_id'],))
+            machines = cursor.fetchall()
+    finally:
+        conn.close()
     
-    return jsonify([dict(m) for m in machines])
+    return jsonify(machines)
 
 @app.route('/api/admin/users', methods=['GET'])
 @login_required
@@ -101,9 +117,13 @@ def admin_get_users():
         return jsonify({"error": "Unauthorized"}), 403
     
     conn = get_db_connection()
-    users = conn.execute('SELECT id, username, role FROM users').fetchall()
-    conn.close()
-    return jsonify([dict(u) for u in users])
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id, username, role FROM users')
+            users = cursor.fetchall()
+    finally:
+        conn.close()
+    return jsonify(users)
 
 @app.route('/api/admin/unassigned_machines', methods=['GET'])
 @login_required
@@ -112,9 +132,13 @@ def admin_get_unassigned():
         return jsonify({"error": "Unauthorized"}), 403
     
     conn = get_db_connection()
-    machines = conn.execute('SELECT * FROM machines WHERE owner_id IS NULL').fetchall()
-    conn.close()
-    return jsonify([dict(m) for m in machines])
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM machines WHERE owner_id IS NULL')
+            machines = cursor.fetchall()
+    finally:
+        conn.close()
+    return jsonify(machines)
 
 @app.route('/api/admin/assign', methods=['POST'])
 @login_required
@@ -130,9 +154,12 @@ def admin_assign_machine():
         return jsonify({"error": "Missing data"}), 400
         
     conn = get_db_connection()
-    conn.execute('UPDATE machines SET owner_id = ? WHERE id = ?', (user_id, machine_id))
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('UPDATE machines SET owner_id = %s WHERE id = %s', (user_id, machine_id))
+        conn.commit()
+    finally:
+        conn.close()
     
     return jsonify({"status": "success", "message": "Machine assigned successfully"})
 
@@ -143,9 +170,13 @@ def admin_get_user_machines(user_id):
         return jsonify({"error": "Unauthorized"}), 403
     
     conn = get_db_connection()
-    machines = conn.execute('SELECT * FROM machines WHERE owner_id = ?', (user_id,)).fetchall()
-    conn.close()
-    return jsonify([dict(m) for m in machines])
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM machines WHERE owner_id = %s', (user_id,))
+            machines = cursor.fetchall()
+    finally:
+        conn.close()
+    return jsonify(machines)
 
 @app.route('/api/admin/unlink', methods=['POST'])
 @login_required
@@ -160,9 +191,12 @@ def admin_unlink_machine():
         return jsonify({"error": "Missing machine_id"}), 400
         
     conn = get_db_connection()
-    conn.execute('UPDATE machines SET owner_id = NULL WHERE id = ?', (machine_id,))
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('UPDATE machines SET owner_id = NULL WHERE id = %s', (machine_id,))
+        conn.commit()
+    finally:
+        conn.close()
     
     return jsonify({"status": "success", "message": "Machine unlinked successfully"})
 
@@ -207,11 +241,14 @@ def deploy_playbook_proxy():
     # If user is not admin, create a request
     else:
         conn = get_db_connection()
-        playbooks_str = ",".join(playbook_names)
-        conn.execute('INSERT INTO deployment_requests (user_id, playbook_names) VALUES (?, ?)',
-                    (session['user_id'], playbooks_str))
-        conn.commit()
-        conn.close()
+        try:
+            playbooks_str = ",".join(playbook_names)
+            with conn.cursor() as cursor:
+                cursor.execute('INSERT INTO deployment_requests (user_id, playbook_names) VALUES (%s, %s)',
+                            (session['user_id'], playbooks_str))
+            conn.commit()
+        finally:
+            conn.close()
         return jsonify({"status": "Requested", "message": "Your deployment request has been sent to the admin for review."})
 
 @app.route('/api/admin/deployment_requests', methods=['GET'])
@@ -221,15 +258,19 @@ def admin_get_requests():
         return jsonify({"error": "Unauthorized"}), 403
     
     conn = get_db_connection()
-    requests_list = conn.execute('''
-        SELECT dr.*, u.username 
-        FROM deployment_requests dr 
-        JOIN users u ON dr.user_id = u.id 
-        WHERE dr.status = 'pending'
-        ORDER BY dr.created_at DESC
-    ''').fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in requests_list])
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('''
+                SELECT dr.*, u.username 
+                FROM deployment_requests dr 
+                JOIN users u ON dr.user_id = u.id 
+                WHERE dr.status = 'pending'
+                ORDER BY dr.created_at DESC
+            ''')
+            requests_list = cursor.fetchall()
+    finally:
+        conn.close()
+    return jsonify(requests_list)
 
 @app.route('/api/admin/process_request', methods=['POST'])
 @login_required
@@ -245,40 +286,40 @@ def admin_process_request():
         return jsonify({"error": "Missing data"}), 400
         
     conn = get_db_connection()
-    req = conn.execute('SELECT * FROM deployment_requests WHERE id = ?', (request_id,)).fetchone()
-    
-    if not req:
-        conn.close()
-        return jsonify({"error": "Request not found"}), 404
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM deployment_requests WHERE id = %s', (request_id,))
+            req = cursor.fetchone()
+            
+            if not req:
+                return jsonify({"error": "Request not found"}), 404
 
-    if action == 'deny':
-        conn.execute("UPDATE deployment_requests SET status = 'denied' WHERE id = ?", (request_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"status": "success", "message": "Request denied."})
-    
-    elif action == 'approve':
-        playbooks = req['playbook_names'].split(',')
-        task_ids = []
-        for playbook in playbooks:
-            try:
-                # Deploy each playbook from the request
-                resp = requests.post(
-                    f"{ANSIBLE_API_BASE_URL}/run-playbook/",
-                    json={"playbook_name": playbook, "extra_vars": {"custom_message": f"Approved for user {req['user_id']}"}},
-                    timeout=10
-                )
-                resp.raise_for_status()
-                task_ids.append({"playbook": playbook, "task_id": resp.json().get('task_id')})
-            except Exception as e:
-                task_ids.append({"playbook": playbook, "error": str(e)})
+            if action == 'deny':
+                cursor.execute("UPDATE deployment_requests SET status = 'denied' WHERE id = %s", (request_id,))
+                conn.commit()
+                return jsonify({"status": "success", "message": "Request denied."})
+            
+            elif action == 'approve':
+                playbooks = req['playbook_names'].split(',')
+                task_ids = []
+                for playbook in playbooks:
+                    try:
+                        # Deploy each playbook from the request
+                        resp = requests.post(
+                            f"{ANSIBLE_API_BASE_URL}/run-playbook/",
+                            json={"playbook_name": playbook, "extra_vars": {"custom_message": f"Approved for user {req['user_id']}"}},
+                            timeout=10
+                        )
+                        resp.raise_for_status()
+                        task_ids.append({"playbook": playbook, "task_id": resp.json().get('task_id')})
+                    except Exception as e:
+                        task_ids.append({"playbook": playbook, "error": str(e)})
 
-        conn.execute("UPDATE deployment_requests SET status = 'approved' WHERE id = ?", (request_id,))
-        conn.commit()
+                cursor.execute("UPDATE deployment_requests SET status = 'approved' WHERE id = %s", (request_id,))
+                conn.commit()
+                return jsonify({"status": "success", "message": "Request approved and playbooks triggered.", "deployments": task_ids})
+    finally:
         conn.close()
-        return jsonify({"status": "success", "message": "Request approved and playbooks triggered.", "deployments": task_ids})
-
-    conn.close()
     return jsonify({"error": "Invalid action"}), 400
 
 @app.route('/get_log/<task_id>', methods=['GET'])
