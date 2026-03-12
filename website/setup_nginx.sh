@@ -25,19 +25,28 @@ echo "Installing system dependencies..."
 sudo apt update
 sudo apt install -y nginx git python3-pip python3-venv libmariadb-dev build-essential
 
-# 4. Clone the repository
-if [ -d "deployone" ]; then
-    echo "Directory 'deployone' already exists. Updating..."
-    cd deployone
-    git pull
+# 4. Clone or use local files
+if [ -f "requirements.txt" ] && [ -f "app.py" ]; then
+    echo "Project files detected in the current directory. Using local files."
+    APP_PATH=$(pwd)
 else
-    echo "Cloning repository..."
-    git clone https://github.com/deployone123/deployone.git
-    cd deployone
+    echo "Project files not found locally."
+    if [ -d "deployone" ]; then
+        echo "Directory 'deployone' already exists. Updating..."
+        cd deployone
+        git pull
+    else
+        echo "Cloning repository..."
+        git clone https://github.com/deployone123/deployone.git
+        cd deployone
+    fi
+    APP_PATH=$(pwd)
 fi
 
 # 5. Create .env file
 echo "Configuring environment..."
+# Ensure we are in APP_PATH
+cd "$APP_PATH"
 cat <<EOF > .env
 DB_HOST=$MARIADB_IP
 DB_NAME=$DB_NAME
@@ -49,13 +58,13 @@ ALLOWED_PROXY_IP=100.121.99.42
 EOF
 
 # 6. Setup Python Virtual Environment
-echo "Setting up Python virtual environment..."
+echo "Setting up Python virtual environment in $APP_PATH..."
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# 7. Initialize Database (optional, depends if DB is already set up on the other machine)
+# 7. Initialize Database
 echo "Do you want to initialize the database schema? (This will attempt to connect to $MARIADB_IP)"
 read -p "(y/n): " INIT_DB
 if [ "$INIT_DB" == "y" ]; then
@@ -64,7 +73,7 @@ fi
 
 # 8. Configure Nginx
 echo "Configuring Nginx..."
-APP_PATH=$(pwd)
+# APP_PATH is already set
 cat <<EOF | sudo tee /etc/nginx/sites-available/deployone
 server {
     listen 80;
