@@ -43,9 +43,14 @@ else
     APP_PATH=$(pwd)
 fi
 
+# Ensure requirements.txt exists before proceeding
+if [ ! -f "$APP_PATH/requirements.txt" ]; then
+    echo "Error: $APP_PATH/requirements.txt not found!"
+    exit 1
+fi
+
 # 5. Create .env file
 echo "Configuring environment..."
-# Ensure we are in APP_PATH
 cd "$APP_PATH"
 cat <<EOF > .env
 DB_HOST=$MARIADB_IP
@@ -59,16 +64,18 @@ EOF
 
 # 6. Setup Python Virtual Environment
 echo "Setting up Python virtual environment in $APP_PATH..."
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+python3 -m venv "$APP_PATH/venv"
+
+# Use the venv pip directly to avoid "externally-managed-environment" errors
+echo "Installing dependencies..."
+"$APP_PATH/venv/bin/pip" install --upgrade pip
+"$APP_PATH/venv/bin/pip" install -r "$APP_PATH/requirements.txt"
 
 # 7. Initialize Database
 echo "Do you want to initialize the database schema? (This will attempt to connect to $MARIADB_IP)"
 read -p "(y/n): " INIT_DB
 if [ "$INIT_DB" == "y" ]; then
-    python3 init_db.py
+    "$APP_PATH/venv/bin/python3" "$APP_PATH/init_db.py"
 fi
 
 # 8. Configure Nginx
