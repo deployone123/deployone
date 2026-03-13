@@ -567,14 +567,41 @@
                 if (result.log) {
                     outputDiv.textContent = result.log;
                     outputDiv.scrollTop = outputDiv.scrollHeight; // Auto-scroll to bottom
+
+                    // --- Auto-Registration Logic ---
+                    // Scan logs for machine details: VMID=xxx, IP=xxx, NAME=xxx, TYPE=xxx
+                    // Common Ansible output patterns: "changed: [localhost] => {..." or custom debug messages
+                    const vmidMatch = result.log.match(/VMID[:=]\s*(\d+)/i);
+                    const ipMatch = result.log.match(/IP[:=]\s*([\d\.]+)/i);
+                    const nameMatch = result.log.match(/NAME[:=]\s*([a-zA-Z0-9\-_]+)/i);
+                    const typeMatch = result.log.match(/TYPE[:=]\s*(lxc|qemu)/i);
+
+                    if (vmidMatch && ipMatch) {
+                        const machineData = {
+                            proxmox_vmid: vmidMatch[1],
+                            internal_ip: ipMatch[1],
+                            machine_name: nameMatch ? nameMatch[1] : `VM-${vmidMatch[1]}`,
+                            machine_type: typeMatch ? typeMatch[1] : 'lxc'
+                        };
+
+                        // Send to server to link with current user
+                        // We do this once per task if possible, but the server handles duplicates
+                        fetch('/api/machines/auto_register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(machineData)
+                        });
+                    }
                 }
 
                 if (result.finished) {
                     clearInterval(logInterval);
                     logInterval = null;
                     deployButton.disabled = false;
-                    messageDiv.textContent = "Deployment Finished!";
+                    messageDiv.textContent = "Deployment Finished! Any new machines have been linked to your account.";
                     messageDiv.className = 'message success';
+                    // Refresh machines list automatically
+                    fetchMachines();
                 }
             } catch (error) {
                 console.error("Error polling logs:", error);

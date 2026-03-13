@@ -190,6 +190,49 @@ def internal_register_machine():
     
     return jsonify({"status": "success", "message": "Machine registered to user automatically"})
 
+@app.route('/api/machines/auto_register', methods=['POST'])
+@login_required
+def auto_register_machine():
+    data = request.get_json()
+    proxmox_vmid = data.get('proxmox_vmid')
+    machine_name = data.get('machine_name')
+    machine_type = data.get('machine_type', 'lxc')
+    internal_ip = data.get('internal_ip')
+    user_id = session['user_id'] # Link to current user
+
+    if not all([proxmox_vmid, internal_ip]):
+        return jsonify({"error": "Missing critical machine data"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Check if machine exists by VMID
+            cursor.execute("SELECT machine_id, owner_id FROM machines WHERE proxmox_vmid = %s", (proxmox_vmid,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                # If it's already owned by someone else (not null and not us), log it
+                if existing['owner_id'] is not None and existing['owner_id'] != user_id:
+                    app.logger.warning(f"Machine {proxmox_vmid} already owned by user {existing['owner_id']}. Overwriting.")
+                
+                cursor.execute('''
+                    UPDATE machines SET internal_ip = %s, owner_id = %s, machine_name = %s, machine_type = %s
+                    WHERE proxmox_vmid = %s
+                ''', (internal_ip, user_id, machine_name, machine_type, proxmox_vmid))
+            else:
+                cursor.execute('''
+                    INSERT INTO machines (proxmox_vmid, machine_name, machine_type, internal_ip, owner_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', (proxmox_vmid, machine_name, machine_type, internal_ip, user_id))
+        conn.commit()
+    except Exception as e:
+        app.logger.error(f"Error in auto_register: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+    
+    return jsonify({"status": "success", "message": "Machine linked to your account"})
+
 @app.route('/api/admin/users', methods=['GET'])
 @login_required
 def admin_get_users():
