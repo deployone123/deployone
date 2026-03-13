@@ -76,6 +76,11 @@
         # This splits "192.168.1.50/24" at the "/" and takes the first part
         container_ip: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | first).split('/')[0] }}"
 
+    - name: Signal Website to Register Machine
+      debug:
+        msg: "AUTO_REGISTER: VMID={{ vmid }} IP={{ container_ip }} NAME={{hostname }} TYPE=lxc"
+      delegate_to: localhost
+
     - name: Enable Root Login via SSH
       shell: |
         pct exec {{ vmid }} -- sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
@@ -140,7 +145,6 @@
       command:
         cmd: docker-compose up -d
         chdir: /usr/deployone
-
 
     - name: Download ttyd binary
       get_url:
