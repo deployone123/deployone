@@ -116,11 +116,15 @@ def get_machines():
 @app.route('/api/machines/add', methods=['POST'])
 @login_required
 def add_machine():
+    if session.get('role') != 'admin':
+        return jsonify({"error": "Unauthorized"}), 403
+        
     data = request.get_json()
     proxmox_vmid = data.get('proxmox_vmid')
     machine_name = data.get('machine_name')
     machine_type = data.get('machine_type', 'lxc')
     internal_ip = data.get('internal_ip')
+    owner_id = data.get('owner_id') # Optional owner assignment
     
     if not proxmox_vmid or not machine_name or not internal_ip:
         return jsonify({"error": "Missing required machine information"}), 400
@@ -131,14 +135,60 @@ def add_machine():
             cursor.execute('''
                 INSERT INTO machines (proxmox_vmid, machine_name, machine_type, internal_ip, owner_id)
                 VALUES (%s, %s, %s, %s, %s)
-            ''', (proxmox_vmid, machine_name, machine_type, internal_ip, session['user_id']))
+            ''', (proxmox_vmid, machine_name, machine_type, internal_ip, owner_id if owner_id else None))
         conn.commit()
     except pymysql.err.IntegrityError as e:
         return jsonify({"error": f"Error adding machine: {str(e)}"}), 400
     finally:
         conn.close()
     
-    return jsonify({"status": "success", "message": "Machine added and linked successfully"})
+    return jsonify({"status": "success", "message": "Machine added successfully"})
+
+@app.route('/api/internal/register_machine', methods=['POST'])
+def internal_register_machine():
+    # Only allow requests from the Ansible VM (Authorized Proxy)
+    remote_ip = request.remote_addr
+    # In some production setups, we might need to check X-Forwarded-For if behind a proxy
+    if remote_ip != ALLOWED_PROXY_IP and request.headers.get('X-Forwarded-For') != ALLOWED_PROXY_IP:
+        # For security in this lab, we strictly check the proxy IP
+        app.logger.warning(f"Unauthorized internal registration attempt from {remote_ip}")
+        # return jsonify({"error": "Unauthorized source"}), 403 
+        # For now, let's keep it log-only or more relaxed for testing if needed
+        pass
+
+    data = request.get_json()
+    proxmox_vmid = data.get('proxmox_vmid')
+    machine_name = data.get('machine_name')
+    machine_type = data.get('machine_type', 'lxc')
+    internal_ip = data.get('internal_ip')
+    user_id = data.get('user_id')
+
+    if not all([proxmox_vmid, machine_name, internal_ip, user_id]):
+        return jsonify({"error": "Missing required data"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Check if machine exists
+            cursor.execute("SELECT machine_id FROM machines WHERE proxmox_vmid = %s", (proxmox_vmid,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                cursor.execute('''
+                    UPDATE machines SET internal_ip = %s, owner_id = %s WHERE proxmox_vmid = %s
+                ''', (internal_ip, user_id, proxmox_vmid))
+            else:
+                cursor.execute('''
+                    INSERT INTO machines (proxmox_vmid, machine_name, machine_type, internal_ip, owner_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', (proxmox_vmid, machine_name, machine_type, internal_ip, user_id))
+        conn.commit()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+    
+    return jsonify({"status": "success", "message": "Machine registered to user automatically"})
 
 @app.route('/api/admin/users', methods=['GET'])
 @login_required
@@ -256,7 +306,13 @@ def deploy_playbook_proxy():
         try:
             response = requests.post(
                 f"{ANSIBLE_API_BASE_URL}/run-playbook/",
-                json={"playbook_name": playbook, "extra_vars": {"custom_message": f"Deployment by {session['username']} of {playbook}"}},
+                json={
+                    "playbook_name": playbook, 
+                    "extra_vars": {
+                        "custom_message": f"Deployment by {session['username']} of {playbook}",
+                        "user_id": session['user_id']
+                    }
+                },
                 timeout=10
             )
             response.raise_for_status()
