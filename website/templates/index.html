@@ -27,7 +27,25 @@
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #6c757d; cursor: not-allowed; }
         
-        pre { background-color: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; border: 1px solid #333; white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+        /* Playbook Checkbox List */
+        .playbook-list { background: white; border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 200px; overflow-y: auto; }
+        .playbook-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .playbook-item:last-child { border-bottom: none; }
+        .playbook-item:hover { background-color: #f8f9fa; }
+        .playbook-item input { width: auto; margin-right: 12px; }
+        .playbook-item label { margin-bottom: 0; cursor: pointer; flex-grow: 1; }
+
+        /* Log Tabs */
+        .log-tabs { display: flex; gap: 5px; margin-top: 20px; border-bottom: 2px solid #dee2e6; overflow-x: auto; }
+        .log-tab { padding: 8px 16px; background: #e9ecef; border: 1px solid #dee2e6; border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; white-space: nowrap; font-size: 0.9em; transition: all 0.2s; }
+        .log-tab.active { background: #1e1e1e; color: #fff; border-color: #1e1e1e; font-weight: bold; }
+        .log-tab .status-icon { margin-right: 8px; font-size: 0.8em; }
+        
+        .log-container { position: relative; }
+        .log-content { display: none; }
+        .log-content.active { display: block; }
+
+        pre { background-color: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 0 0 4px 4px; border: 1px solid #333; white-space: pre-wrap; word-break: break-all; height: 400px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 13px; margin-top: 0; }
         .message { margin-top: 15px; padding: 12px; border-radius: 4px; }
         .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
@@ -81,18 +99,24 @@
         <!-- Ansible View -->
         <div id="ansible-view" class="view-section active container">
             <div class="form-group">
-                <label for="playbookSelect">Select Playbook(s): (Hold Ctrl to select multiple)</label>
-                <select id="playbookSelect" multiple style="height: 150px;">
+                <label>Select Playbook(s):</label>
+                <div id="playbookList" class="playbook-list">
                     <!-- Playbooks will be loaded here by JavaScript -->
-                </select>
+                    <p style="color: #666; padding: 10px;">Fetching playbooks...</p>
+                </div>
             </div>
 
             <button id="deployButton">Deploy Selected Playbook(s)</button>
 
             <div id="message" class="message" style="display: none;"></div>
             
-            <h3>Deployment Logs:</h3>
-            <pre id="output"></pre>
+            <div id="logTabs" class="log-tabs" style="display: none;">
+                <!-- Tabs will be added here -->
+            </div>
+            <div id="logContainer" class="log-container">
+                <!-- Log content divs will be added here -->
+                <pre id="initialOutput" style="border-radius: 4px; margin-top: 20px;">Ready for deployment...</pre>
+            </div>
         </div>
 
         <!-- Connections View -->
@@ -530,138 +554,199 @@
         }
 
         // --- Ansible Logic ---
-        const playbookSelect = document.getElementById('playbookSelect');
+        const playbookList = document.getElementById('playbookList');
         const deployButton = document.getElementById('deployButton');
-        const outputDiv = document.getElementById('output');
         const messageDiv = document.getElementById('message');
+        const logTabs = document.getElementById('logTabs');
+        const logContainer = document.getElementById('logContainer');
         const userRole = "{{ user_role }}";
-
-        let logInterval = null;
 
         async function fetchPlaybooks() {
             try {
                 const response = await fetch('/list_playbooks');
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-                playbookSelect.innerHTML = '';
-                data.playbooks.forEach(playbook => {
-                    const option = document.createElement('option');
-                    option.value = playbook;
-                    option.textContent = playbook;
-                    playbookSelect.appendChild(option);
+                
+                playbookList.innerHTML = '';
+                if (data.playbooks.length === 0) {
+                    playbookList.innerHTML = '<p style="padding: 10px;">No playbooks available.</p>';
+                    return;
+                }
+
+                data.playbooks.forEach((playbook, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'playbook-item';
+                    item.innerHTML = `
+                        <input type="checkbox" id="pb-${index}" value="${playbook}">
+                        <label for="pb-${index}">${playbook}</label>
+                    `;
+                    item.onclick = (e) => {
+                        if (e.target.tagName !== 'INPUT') {
+                            const cb = item.querySelector('input');
+                            cb.checked = !cb.checked;
+                        }
+                    };
+                    playbookList.appendChild(item);
                 });
             } catch (error) {
                 console.error("Error fetching playbooks:", error);
-                messageDiv.textContent = `Error loading playbooks: ${error.message}`;
-                messageDiv.className = 'message error';
-                messageDiv.style.display = 'block';
+                playbookList.innerHTML = `<p class="error">Error: ${error.message}</p>`;
             }
         }
 
-        async function pollLogs(taskId) {
-            try {
-                const response = await fetch(`/get_log/${taskId}`);
-                if (!response.ok) return;
+        function createLogTab(playbookName, taskId) {
+            const tabId = `tab-${taskId}`;
+            const contentId = `content-${taskId}`;
+            
+            // Create Tab
+            const tab = document.createElement('div');
+            tab.className = 'log-tab';
+            tab.id = tabId;
+            tab.innerHTML = `<span class="status-icon">⏳</span> ${playbookName}`;
+            tab.onclick = () => switchTab(taskId);
+            logTabs.appendChild(tab);
+            
+            // Create Content
+            const content = document.createElement('div');
+            content.className = 'log-content';
+            content.id = contentId;
+            content.innerHTML = `<pre id="log-${taskId}">Initializing log for ${playbookName}...</pre>`;
+            logContainer.appendChild(content);
+            
+            return { tab, content };
+        }
+
+        function switchTab(taskId) {
+            document.querySelectorAll('.log-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.log-content').forEach(c => c.classList.remove('active'));
+            
+            document.getElementById(`tab-${taskId}`).classList.add('active');
+            document.getElementById(`content-${taskId}`).classList.add('active');
+        }
+
+        function updateTabStatus(taskId, status) {
+            const tab = document.getElementById(`tab-${taskId}`);
+            if (!tab) return;
+            
+            let icon = '⏳';
+            if (status === 'success') icon = '✅';
+            if (status === 'error') icon = '❌';
+            if (status === 'running') icon = '🚀';
+            
+            tab.querySelector('.status-icon').textContent = icon;
+        }
+
+        async function pollLogs(taskId, playbookName) {
+            return new Promise((resolve) => {
+                const logElement = document.getElementById(`log-${taskId}`);
+                updateTabStatus(taskId, 'running');
                 
-                const result = await response.json();
-                if (result.log) {
-                    outputDiv.textContent = result.log;
-                    outputDiv.scrollTop = outputDiv.scrollHeight; // Auto-scroll to bottom
+                const interval = setInterval(async () => {
+                    try {
+                        const response = await fetch(`/get_log/${taskId}`);
+                        if (!response.ok) return;
+                        
+                        const result = await response.json();
+                        if (result.log) {
+                            logElement.textContent = result.log;
+                            logElement.scrollTop = logElement.scrollHeight;
 
-                    // --- Auto-Registration Logic ---
-                    // Scan logs for machine details: VMID=xxx, IP=xxx, NAME=xxx, TYPE=xxx
-                    // Common Ansible output patterns: "changed: [localhost] => {..." or custom debug messages
-                    const vmidMatch = result.log.match(/VMID[:=]\s*(\d+)/i);
-                    const ipMatch = result.log.match(/IP[:=]\s*([\d\.]+)/i);
-                    const nameMatch = result.log.match(/NAME[:=]\s*([a-zA-Z0-9\-_]+)/i);
-                    const typeMatch = result.log.match(/TYPE[:=]\s*(lxc|qemu)/i);
+                            // Auto-Registration Logic (Simplified)
+                            const vmidMatch = result.log.match(/VMID[:=]\s*(\d+)/i);
+                            const ipMatch = result.log.match(/IP[:=]\s*([\d\.]+)/i);
+                            if (vmidMatch && ipMatch) {
+                                fetch('/api/machines/auto_register', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        proxmox_vmid: vmidMatch[1],
+                                        internal_ip: ipMatch[1],
+                                        machine_name: `VM-${vmidMatch[1]}`,
+                                        machine_type: 'lxc'
+                                    })
+                                });
+                            }
+                        }
 
-                    if (vmidMatch && ipMatch) {
-                        const machineData = {
-                            proxmox_vmid: vmidMatch[1],
-                            internal_ip: ipMatch[1],
-                            machine_name: nameMatch ? nameMatch[1] : `VM-${vmidMatch[1]}`,
-                            machine_type: typeMatch ? typeMatch[1] : 'lxc'
-                        };
-
-                        // Send to server to link with current user
-                        // We do this once per task if possible, but the server handles duplicates
-                        fetch('/api/machines/auto_register', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(machineData)
-                        });
+                        if (result.finished) {
+                            clearInterval(interval);
+                            updateTabStatus(taskId, 'success');
+                            resolve(true);
+                        }
+                    } catch (error) {
+                        console.error(`Error polling logs for ${taskId}:`, error);
+                        clearInterval(interval);
+                        updateTabStatus(taskId, 'error');
+                        resolve(false);
                     }
-                }
-
-                if (result.finished) {
-                    clearInterval(logInterval);
-                    logInterval = null;
-                    deployButton.disabled = false;
-                    messageDiv.textContent = "Deployment Finished! Any new machines have been linked to your account.";
-                    messageDiv.className = 'message success';
-                    // Refresh machines list automatically
-                    fetchMachines();
-                }
-            } catch (error) {
-                console.error("Error polling logs:", error);
-            }
+                }, 2000);
+            });
         }
 
         deployButton.addEventListener('click', async () => {
-            const selectedOptions = Array.from(playbookSelect.selectedOptions).map(opt => opt.value);
-            if (selectedOptions.length === 0) {
+            const selectedCheckboxes = Array.from(playbookList.querySelectorAll('input:checked'));
+            const selectedPlaybooks = selectedCheckboxes.map(cb => cb.value);
+
+            if (selectedPlaybooks.length === 0) {
                 alert('Please select at least one playbook.');
                 return;
             }
 
             // UI Reset
-            const actionText = userRole === 'admin' ? 'Initiating deployment...' : 'Sending request to admin...';
-            outputDiv.textContent = actionText;
-            messageDiv.textContent = actionText;
+            deployButton.disabled = true;
+            messageDiv.textContent = `Starting sequential deployment of ${selectedPlaybooks.length} playbook(s)...`;
             messageDiv.className = 'message info';
             messageDiv.style.display = 'block';
-            deployButton.disabled = true;
+            
+            // Clear previous logs
+            logTabs.innerHTML = '';
+            logTabs.style.display = 'flex';
+            logContainer.innerHTML = ''; // This removes the initialOutput as well
 
-            if (logInterval) clearInterval(logInterval);
+            for (let i = 0; i < selectedPlaybooks.length; i++) {
+                const playbook = selectedPlaybooks[i];
+                messageDiv.textContent = `Deploying (${i + 1}/${selectedPlaybooks.length}): ${playbook}...`;
+                
+                try {
+                    const response = await fetch(`/deploy_playbook`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ playbook_names: [playbook] }) // Deploy one at a time
+                    });
 
-            try {
-                const response = await fetch(`/deploy_playbook`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ playbook_names: selectedOptions })
-                });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error || 'Deployment failed');
 
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.error || result.detail || 'Failed to process request');
-                }
-
-                if (result.status === 'Started') {
-                    // Start polling for the FIRST playbook as a simple feedback (optional improvement: poll all)
-                    if (result.deployments && result.deployments.length > 0 && result.deployments[0].task_id) {
-                        logInterval = setInterval(() => pollLogs(result.deployments[0].task_id), 2000);
-                        messageDiv.textContent = "Deployments started! Showing logs for: " + result.deployments[0].playbook;
-                    } else {
-                        outputDiv.textContent = "All playbooks triggered successfully.";
-                        messageDiv.textContent = "Deployment complete.";
-                        deployButton.disabled = false;
+                    if (result.deployments && result.deployments.length > 0) {
+                        const dep = result.deployments[0];
+                        if (dep.error) throw new Error(dep.error);
+                        
+                        const taskId = dep.task_id;
+                        createLogTab(playbook, taskId);
+                        switchTab(taskId);
+                        
+                        // Wait for this one to finish before starting next
+                        await pollLogs(taskId, playbook);
                     }
-                } else {
-                    outputDiv.textContent = 'Deployment processed.';
-                    messageDiv.textContent = "Finished.";
-                    messageDiv.className = 'message success';
+                } catch (error) {
+                    console.error(`Error deploying ${playbook}:`, error);
+                    const errorTaskId = `error-${Date.now()}`;
+                    createLogTab(playbook, errorTaskId);
+                    switchTab(errorTaskId);
+                    document.getElementById(`log-${errorTaskId}`).textContent = `Error starting deployment: ${error.message}`;
+                    updateTabStatus(errorTaskId, 'error');
+                    // Continue to next or stop? Let's stop on error.
+                    messageDiv.textContent = `Deployment stopped due to error in ${playbook}.`;
+                    messageDiv.className = 'message error';
                     deployButton.disabled = false;
+                    return;
                 }
-
-            } catch (error) {
-                console.error("Error during deployment/request:", error);
-                outputDiv.textContent = `Error: ${error.message}`;
-                messageDiv.textContent = `Operation failed: ${error.message}`;
-                messageDiv.className = 'message error';
-                deployButton.disabled = false;
             }
+
+            messageDiv.textContent = "All deployments finished!";
+            messageDiv.className = 'message success';
+            deployButton.disabled = false;
+            fetchMachines(); // Refresh machines list
         });
 
         fetchPlaybooks();
