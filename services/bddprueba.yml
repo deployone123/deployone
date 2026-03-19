@@ -107,17 +107,13 @@
     db_pass: "CambiaEstaClave123!"
 
   tasks:
-    - name: 1. Actualizar caché de APT
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600
-
     - name: 2. Instalar MariaDB y dependencias
       apt:
         name:
           - mariadb-server
           - python3-pymysql
         state: present
+        update_cache: true
 
     - name: 3. Iniciar el servicio MariaDB
       service:
