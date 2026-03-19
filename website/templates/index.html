@@ -3,260 +3,648 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ansible Deployer</title>
+    <title>DeployOne — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; margin: 0; background-color: #f4f4f4; display: flex; height: 100vh; overflow: hidden; }
-        .sidebar { width: 250px; background-color: #343a40; color: white; display: flex; flex-direction: column; }
-        .sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid #4b545c; }
-        .sidebar-menu { flex-grow: 1; padding-top: 20px; }
-        .menu-item { padding: 15px 20px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; }
-        .menu-item:hover { background-color: #495057; }
-        .menu-item.active { background-color: #007bff; }
-        .sidebar-footer { padding: 20px; border-top: 1px solid #4b545c; font-size: 0.85em; }
-        
-        .main-content { flex-grow: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; }
-        .top-bar { background-color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10; }
-        .container { padding: 30px; max-width: 1000px; margin: 0 auto; width: 100%; box-sizing: border-box; }
-        
-        h1, h2 { color: #333; margin-top: 0; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        select, input, button { padding: 10px; border-radius: 4px; border: 1px solid #ddd; width: 100%; box-sizing: border-box; }
-        select, input { background-color: white; }
-        button { background-color: #007bff; color: white; border: none; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #6c757d; cursor: not-allowed; }
-        
-        /* Playbook Checkbox List */
-        .playbook-list { background: white; border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 200px; overflow-y: auto; }
-        .playbook-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
-        .playbook-item:last-child { border-bottom: none; }
-        .playbook-item:hover { background-color: #f8f9fa; }
-        .playbook-item input { width: auto; margin-right: 12px; }
-        .playbook-item label { margin-bottom: 0; cursor: pointer; flex-grow: 1; }
+        :root {
+            --bg: #0a0c10;
+            --surface: #111318;
+            --surface2: #161b26;
+            --border: #1e2330;
+            --border2: #252c3d;
+            --accent: #00d4aa;
+            --accent2: #5b8dee;
+            --accent-dim: rgba(0,212,170,0.1);
+            --text: #e2e8f0;
+            --text-muted: #64748b;
+            --text-dim: #94a3b8;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+        }
 
-        /* Log Tabs */
-        .log-tabs { display: flex; gap: 5px; margin-top: 20px; border-bottom: 2px solid #dee2e6; overflow-x: auto; }
-        .log-tab { padding: 8px 16px; background: #e9ecef; border: 1px solid #dee2e6; border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; white-space: nowrap; font-size: 0.9em; transition: all 0.2s; }
-        .log-tab.active { background: #1e1e1e; color: #fff; border-color: #1e1e1e; font-weight: bold; }
-        .log-tab .status-icon { margin-right: 8px; font-size: 0.8em; }
-        
-        .log-container { position: relative; }
-        .log-content { display: none; }
-        .log-content.active { display: block; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        pre { background-color: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 0 0 4px 4px; border: 1px solid #333; white-space: pre-wrap; word-break: break-all; height: 400px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 13px; margin-top: 0; }
-        .message { margin-top: 15px; padding: 12px; border-radius: 4px; }
-        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
 
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 220px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-logo {
+            padding: 20px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-logo-icon {
+            width: 30px; height: 30px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px;
+        }
+
+        .sidebar-logo-text {
+            font-family: 'Syne', sans-serif;
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+        }
+
+        .sidebar-logo-text span { color: var(--accent); }
+
+        .sidebar-nav {
+            flex-grow: 1;
+            padding: 12px 8px;
+        }
+
+        .nav-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            padding: 8px 10px 6px;
+        }
+
+        .menu-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.15s, color 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 2px;
+        }
+
+        .menu-item:hover { background: var(--surface2); color: var(--text); }
+
+        .menu-item.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid rgba(0,212,170,0.2);
+        }
+
+        .menu-item .icon { font-size: 15px; width: 20px; text-align: center; }
+
+        .sidebar-footer {
+            padding: 16px 18px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+        }
+
+        .sidebar-username {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 2px;
+        }
+
+        .sidebar-role {
+            color: var(--text-muted);
+            font-size: 11px;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-role span {
+            color: var(--accent);
+            background: var(--accent-dim);
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+
+        .logout-link {
+            color: #f87171;
+            text-decoration: none;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: opacity 0.2s;
+        }
+
+        .logout-link:hover { opacity: 0.75; }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 28px;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .top-bar h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .top-bar-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid rgba(0,212,170,0.2);
+        }
+
+        .content-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 28px;
+        }
+
+        /* ===== VIEWS ===== */
         .view-section { display: none; }
         .view-section.active { display: block; }
 
-        /* TTY Section Styles */
-        .tty-container { width: 100%; height: calc(100vh - 250px); border: 1px solid #ccc; border-radius: 4px; background: #000; overflow: hidden; margin-top: 20px; }
-        .tty-iframe { width: 100%; height: 100%; border: none; }
-        .connection-form { display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd; }
-        .connection-form .form-group { flex: 1; min-width: 150px; margin-bottom: 0; }
-        .connection-form .form-group.small { flex: 0 0 100px; min-width: 100px; }
-        .connection-form .form-group.checkbox-group { flex: 0 0 auto; min-width: auto; display: flex; align-items: center; gap: 8px; height: 40px; }
-        .connection-form .form-group.checkbox-group input { width: auto; }
-        .connection-form .form-group.checkbox-group label { margin-bottom: 0; }
-        .connection-form button { margin-top: 0; height: 40px; flex: 0 0 120px; }
+        /* ===== FORMS ===== */
+        .form-group { margin-bottom: 16px; }
+
+        label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 6px;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 9px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(0,212,170,0.1);
+        }
+
+        input::placeholder { color: var(--text-muted); }
+
+        button {
+            padding: 9px 18px;
+            background: var(--accent);
+            color: #0a0c10;
+            border: none;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        button:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+        button:active:not(:disabled) { transform: translateY(0); }
+        button:disabled { background: #2d3748; color: var(--text-muted); cursor: not-allowed; }
+
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-blue { background: var(--accent2); color: white; }
+        .btn-green { background: var(--success); color: white; }
+        .btn-sm { width: auto; padding: 5px 12px; margin-top: 0; font-size: 11px; }
+
+        /* ===== PLAYBOOK LIST ===== */
+        .playbook-list {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .playbook-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .playbook-item:last-child { border-bottom: none; }
+        .playbook-item:hover { background: var(--surface2); }
+
+        .playbook-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 12px;
+            accent-color: var(--accent);
+        }
+
+        .playbook-item label { margin-bottom: 0; font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; flex-grow: 1; font-weight: 400; }
+
+        /* ===== LOG TABS ===== */
+        .log-tabs {
+            display: flex;
+            gap: 4px;
+            margin-top: 20px;
+            overflow-x: auto;
+            padding-bottom: 0;
+        }
+
+        .log-tab {
+            padding: 7px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 12px;
+            color: var(--text-dim);
+            transition: all 0.15s;
+        }
+
+        .log-tab:hover { background: var(--surface2); color: var(--text); }
+
+        .log-tab.active {
+            background: #0d1117;
+            color: var(--accent);
+            border-color: var(--border2);
+            font-weight: 600;
+        }
+
+        .log-tab .status-icon { margin-right: 6px; }
+
+        .log-content { display: none; }
+        .log-content.active { display: block; }
+
+        pre {
+            background: #0d1117;
+            color: #a8d8a8;
+            padding: 16px;
+            border-radius: 0 6px 6px 6px;
+            border: 1px solid var(--border2);
+            white-space: pre-wrap;
+            word-break: break-all;
+            height: 380px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            margin-top: 0;
+            line-height: 1.6;
+        }
+
+        /* ===== MESSAGE BOXES ===== */
+        .message {
+            margin-top: 14px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .success { background: rgba(34,197,94,0.1); color: #86efac; border: 1px solid rgba(34,197,94,0.2); }
+        .error { background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
+        .info { background: rgba(59,130,246,0.1); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .card-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+        .section { margin-bottom: 24px; }
+
+        /* ===== MACHINE CARDS ===== */
+        .machine-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .machine-card:hover {
+            border-color: var(--border2);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .machine-card-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-family: 'Syne', sans-serif;
+        }
+
+        .machine-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .machine-meta strong { color: var(--text-dim); }
+
+        /* ===== TTY ===== */
+        .tty-container {
+            width: 100%;
+            height: calc(100vh - 300px);
+            border: 1px solid var(--border2);
+            border-radius: 8px;
+            background: #000;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .tty-titlebar {
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .tty-iframe { width: 100%; height: calc(100% - 40px); border: none; }
+
+        .tty-placeholder {
+            text-align: center;
+            padding: 60px 0;
+            color: var(--text-muted);
+            background: var(--surface);
+            border-radius: 8px;
+            border: 2px dashed var(--border2);
+            font-size: 13px;
+            margin-top: 20px;
+        }
+
+        /* ===== TABLES ===== */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .data-table th {
+            background: var(--surface2);
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .data-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+        }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: var(--surface2); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3d4f6b; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <div class="sidebar-header">
-            <h3>DeployOne</h3>
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">⚡</div>
+            <div class="sidebar-logo-text">Deploy<span>One</span></div>
         </div>
-        <div class="sidebar-menu">
+
+        <nav class="sidebar-nav">
+            <div class="nav-label">Navigation</div>
             <div class="menu-item active" onclick="switchView('ansible', this)">
-                <span>Ansible Playbooks</span>
+                <span class="icon">🚀</span>
+                <span>Playbooks</span>
             </div>
             <div class="menu-item" onclick="switchView('connections', this)">
-                <span>My Machines (TTY)</span>
+                <span class="icon">🖥</span>
+                <span>My Machines</span>
             </div>
             {% if user_role == 'admin' %}
+            <div class="nav-label" style="margin-top: 12px;">Admin</div>
             <div class="menu-item" onclick="switchView('manage', this)">
+                <span class="icon">⚙</span>
                 <span>Management</span>
             </div>
             {% endif %}
-        </div>
+        </nav>
+
         <div class="sidebar-footer">
-            <p style="margin: 0; font-weight: bold;">{{ session['username'] }}</p>
-            <p style="margin: 0; opacity: 0.7;">Role: {{ user_role }}</p>
-            <a href="{{ url_for('logout') }}" style="color: #ff6b6b; text-decoration: none; display: block; margin-top: 10px;">Logout</a>
+            <div class="sidebar-username">{{ session['username'] }}</div>
+            <div class="sidebar-role">Role: <span>{{ user_role }}</span></div>
+            <a href="{{ url_for('logout') }}" class="logout-link">↪ Logout</a>
         </div>
     </div>
 
     <div class="main-content">
         <div class="top-bar">
             <h2 id="view-title">Ansible Playbook Deployer</h2>
+            <span class="top-bar-badge" id="view-badge">ansible</span>
         </div>
 
-        <!-- Ansible View -->
-        <div id="ansible-view" class="view-section active container">
-            <div class="form-group">
-                <label>Select Playbook(s):</label>
-                <div id="playbookList" class="playbook-list">
-                    <!-- Playbooks will be loaded here by JavaScript -->
-                    <p style="color: #666; padding: 10px;">Fetching playbooks...</p>
+        <div class="content-area">
+
+            <!-- ===== ANSIBLE VIEW ===== -->
+            <div id="ansible-view" class="view-section active">
+                <div class="card section">
+                    <div class="card-title">Select Playbook(s)</div>
+                    <div id="playbookList" class="playbook-list">
+                        <p style="padding: 14px; color: var(--text-muted); font-size: 12px;">Fetching playbooks...</p>
+                    </div>
+                    <button id="deployButton" style="max-width: 240px; margin-top: 16px;">▶ Deploy Selected</button>
+                </div>
+
+                <div id="message" class="message" style="display: none;"></div>
+
+                <div id="logTabs" class="log-tabs" style="display: none;"></div>
+                <div id="logContainer">
+                    <pre id="initialOutput" style="border-radius: 6px; margin-top: 16px; color: var(--text-muted);">// Ready for deployment...</pre>
                 </div>
             </div>
 
-            <button id="deployButton">Deploy Selected Playbook(s)</button>
-
-            <div id="message" class="message" style="display: none;"></div>
-            
-            <div id="logTabs" class="log-tabs" style="display: none;">
-                <!-- Tabs will be added here -->
-            </div>
-            <div id="logContainer" class="log-container">
-                <!-- Log content divs will be added here -->
-                <pre id="initialOutput" style="border-radius: 4px; margin-top: 20px;">Ready for deployment...</pre>
-            </div>
-        </div>
-
-        <!-- Connections View -->
-        <div id="connections-view" class="view-section container" style="max-width: 1200px;">
-            <h3>Available Machines:</h3>
-            <div id="machines-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                <!-- Machines will be loaded here -->
-            </div>
-
-            <div id="ttyWrapper" class="tty-container" style="display: none;">
-                <div style="background: #333; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-                    <span id="ttyTitle">Terminal</span>
-                    <button onclick="closeTTY()" style="background: #dc3545; width: auto; margin-top: 0; padding: 5px 15px;">Close Terminal</button>
+            <!-- ===== CONNECTIONS VIEW ===== -->
+            <div id="connections-view" class="view-section">
+                <div class="section">
+                    <div class="card-title" style="font-family: 'Syne'; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="width:3px;height:16px;background:var(--accent);border-radius:2px;display:inline-block;"></span>
+                        Assigned Machines
+                    </div>
+                    <div id="machines-list" class="grid-auto"></div>
                 </div>
-                <iframe id="ttyIframe" class="tty-iframe"></iframe>
-            </div>
-            
-            <div id="ttyPlaceholder" style="text-align: center; padding: 60px 0; color: #666; background: #eee; border-radius: 4px; border: 2px dashed #ccc;">
-                Select a machine from the list above to open its terminal.
-            </div>
-        </div>
 
-        <!-- Manage View (Admin Only) -->
-        {% if user_role == 'admin' %}
-        <div id="manage-view" class="view-section container">
-            <h3>Machine Assignment Management</h3>
-            <div style="background: white; padding: 25px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 30px;">
-                <h4>Add & Assign New Machine</h4>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
-                        <label for="newMachineVMID">Proxmox VMID:</label>
-                        <input type="number" id="newMachineVMID" placeholder="e.g. 101">
+                <div id="ttyWrapper" class="tty-container" style="display: none;">
+                    <div class="tty-titlebar">
+                        <span id="ttyTitle">Terminal</span>
+                        <button onclick="closeTTY()" class="btn-danger btn-sm" style="width: auto; margin-top: 0; padding: 5px 12px;">✕ Close</button>
                     </div>
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
-                        <label for="newMachineName">Machine Name:</label>
-                        <input type="text" id="newMachineName" placeholder="e.g. My-Web-Server">
-                    </div>
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
-                        <label for="newMachineType">Type:</label>
-                        <select id="newMachineType">
-                            <option value="lxc">LXC</option>
-                            <option value="qemu">QEMU (VM)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
-                        <label for="newMachineIP">Internal IP:</label>
-                        <input type="text" id="newMachineIP" placeholder="e.g. 10.0.0.5">
-                    </div>
-                    <div class="form-group" style="flex: 1; min-width: 200px;">
-                        <label for="newMachineOwner">Assign to User:</label>
-                        <select id="newMachineOwner">
-                            <!-- Users loaded here -->
-                        </select>
-                    </div>
-                    <div style="flex: 0 0 100%; display: flex; justify-content: flex-end;">
-                        <button onclick="addMachine()" style="width: auto; padding: 10px 30px;">Create & Link Machine</button>
-                    </div>
+                    <iframe id="ttyIframe" class="tty-iframe"></iframe>
                 </div>
-                <div id="add-machine-message" class="message" style="display: none;"></div>
-            </div>
 
-            <div style="background: white; padding: 25px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 30px;">
-                <h4>Link Existing Machine to Client</h4>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <div class="form-group" style="flex: 1; min-width: 200px;">
-                        <label for="assignMachine">Machine:</label>
-                        <select id="assignMachine"></select>
-                    </div>
-                    <div class="form-group" style="flex: 1; min-width: 200px;">
-                        <label for="assignUser">Client:</label>
-                        <select id="assignUser" onchange="fetchUserMachines()"></select>
-                    </div>
-                    <div style="flex: 0 0 100%; display: flex; justify-content: flex-end;">
-                        <button onclick="performAssignment()" style="width: auto; padding: 10px 30px;">Assign Machine</button>
-                    </div>
-                </div>
-                <div id="manage-message" class="message" style="display: none;"></div>
-            </div>
-
-            <div style="background: white; padding: 25px; border-radius: 8px; border: 1px solid #ddd;">
-                <h4>Manage Assigned Machines for Selected Client</h4>
-                <div id="user-machines-list" style="margin-top: 15px;">
-                    <p style="color: #888;">Select a client above to view and manage their assigned machines.</p>
+                <div id="ttyPlaceholder" class="tty-placeholder">
+                    <p>🖥 Select a machine above to open its terminal</p>
                 </div>
             </div>
 
-            <div style="background: white; padding: 25px; border-radius: 8px; border: 1px solid #ddd; margin-top: 30px;">
-                <h4>Pending Deployment Requests</h4>
-                <div id="deployment-requests-list" style="margin-top: 15px;">
-                    <p style="color: #888;">No pending requests found.</p>
+            <!-- ===== MANAGE VIEW (Admin) ===== -->
+            {% if user_role == 'admin' %}
+            <div id="manage-view" class="view-section">
+
+                <div class="card section">
+                    <div class="card-title">Add &amp; Assign New Machine</div>
+                    <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                        <div class="form-group" style="flex: 1; min-width: 140px;">
+                            <label for="newMachineVMID">Proxmox VMID</label>
+                            <input type="number" id="newMachineVMID" placeholder="e.g. 101">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 140px;">
+                            <label for="newMachineName">Machine Name</label>
+                            <input type="text" id="newMachineName" placeholder="e.g. web-server-01">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 120px;">
+                            <label for="newMachineType">Type</label>
+                            <select id="newMachineType">
+                                <option value="lxc">LXC</option>
+                                <option value="qemu">QEMU (VM)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 140px;">
+                            <label for="newMachineIP">Internal IP</label>
+                            <input type="text" id="newMachineIP" placeholder="10.0.0.5">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 180px;">
+                            <label for="newMachineOwner">Assign to User</label>
+                            <select id="newMachineOwner"></select>
+                        </div>
+                        <div style="flex: 0 0 100%; display: flex; justify-content: flex-end;">
+                            <button onclick="addMachine()" style="width: auto; padding: 9px 24px; margin-top: 0;">+ Create &amp; Link Machine</button>
+                        </div>
+                    </div>
+                    <div id="add-machine-message" class="message" style="display: none;"></div>
                 </div>
+
+                <div class="grid-2">
+                    <div class="card section">
+                        <div class="card-title">Link Existing Machine</div>
+                        <div class="form-group">
+                            <label for="assignMachine">Machine</label>
+                            <select id="assignMachine"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignUser">Client</label>
+                            <select id="assignUser" onchange="fetchUserMachines()"></select>
+                        </div>
+                        <button onclick="performAssignment()" style="max-width: 200px;">→ Assign Machine</button>
+                        <div id="manage-message" class="message" style="display: none;"></div>
+                    </div>
+
+                    <div class="card section">
+                        <div class="card-title">Client Machines</div>
+                        <div id="user-machines-list">
+                            <p style="color: var(--text-muted); font-size: 12px;">Select a client to view their machines.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card section">
+                    <div class="card-title">Pending Deployment Requests</div>
+                    <div id="deployment-requests-list">
+                        <p style="color: var(--text-muted); font-size: 12px;">No pending requests found.</p>
+                    </div>
+                </div>
+
             </div>
-        </div>
-        {% endif %}
-    </div>
+            {% endif %}
+
+        </div><!-- end content-area -->
+    </div><!-- end main-content -->
 
     <script>
         function switchView(viewId, element) {
-            // Update Menu
             document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
             element.classList.add('active');
-
-            // Update View
             document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
             document.getElementById(`${viewId}-view`).classList.add('active');
-
-            // Update Title
-            const titles = {
-                'ansible': 'Ansible Playbook Deployer',
-                'connections': 'My Assigned Machines',
-                'manage': 'Machine Management'
-            };
+            const titles = { 'ansible': 'Ansible Playbook Deployer', 'connections': 'My Assigned Machines', 'manage': 'Machine Management' };
             document.getElementById('view-title').textContent = titles[viewId];
-            
-            if (viewId === 'connections') {
-                fetchMachines();
-            } else if (viewId === 'manage') {
-                fetchManageData();
-                fetchDeploymentRequests();
-            }
+            document.getElementById('view-badge').textContent = viewId;
+            if (viewId === 'connections') { fetchMachines(); }
+            else if (viewId === 'manage') { fetchManageData(); fetchDeploymentRequests(); }
         }
 
         async function fetchManageData() {
             if (userRole !== 'admin') return;
-
-            // Clear current selection
-            document.getElementById('user-machines-list').innerHTML = '<p style="color: #888;">Select a client above to view and manage their assigned machines.</p>';
-
+            document.getElementById('user-machines-list').innerHTML = '<p style="color: var(--text-muted); font-size: 12px;">Select a client above to view and manage their assigned machines.</p>';
             try {
-                // Fetch Users
                 const userResp = await fetch('/api/admin/users');
                 const users = await userResp.json();
-
-                // Populate both user selects
                 const userSelect = document.getElementById('assignUser');
                 const ownerSelect = document.getElementById('newMachineOwner');
-
                 userSelect.innerHTML = '<option value="">-- Select Client --</option>';
                 ownerSelect.innerHTML = '<option value="">-- Leave Unassigned --</option>';
-
                 users.forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u.id;
@@ -264,8 +652,6 @@
                     userSelect.appendChild(opt.cloneNode(true));
                     ownerSelect.appendChild(opt);
                 });
-
-                // Fetch Unassigned Machines
                 const machResp = await fetch('/api/admin/unassigned_machines');
                 const machines = await machResp.json();
                 const machineSelect = document.getElementById('assignMachine');
@@ -276,166 +662,81 @@
                     opt.textContent = `${m.machine_name} (${m.internal_ip}) - ${m.machine_type}`;
                     machineSelect.appendChild(opt);
                 });
-            } catch (error) {
-                console.error("Error loading management data:", error);
-            }
+            } catch (error) { console.error("Error loading management data:", error); }
         }
+
         async function fetchUserMachines() {
             const userId = document.getElementById('assignUser').value;
             const listDiv = document.getElementById('user-machines-list');
-            
-            if (!userId) {
-                listDiv.innerHTML = '<p style="color: #888;">Select a client above to view and manage their assigned machines.</p>';
-                return;
-            }
-
-            listDiv.innerHTML = '<p>Loading user machines...</p>';
-
+            if (!userId) { listDiv.innerHTML = '<p style="color: var(--text-muted); font-size: 12px;">Select a client above to view and manage their assigned machines.</p>'; return; }
+            listDiv.innerHTML = '<p style="font-size: 12px; color: var(--text-muted);">Loading...</p>';
             try {
                 const response = await fetch(`/api/admin/user_machines/${userId}`);
                 const machines = await response.json();
-
-                if (machines.length === 0) {
-                    listDiv.innerHTML = '<p>No machines assigned to this user.</p>';
-                    return;
-                }
-
-                let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
-                html += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Name</th><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">IP</th><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Type</th><th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Action</th></tr>';
-                
+                if (machines.length === 0) { listDiv.innerHTML = '<p style="font-size: 12px; color: var(--text-muted);">No machines assigned to this user.</p>'; return; }
+                let html = '<table class="data-table"><thead><tr><th>Name</th><th>IP</th><th>Type</th><th>Action</th></tr></thead><tbody>';
                 machines.forEach(m => {
                     html += `<tr>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${m.machine_name}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${m.internal_ip}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${m.machine_type}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
-                            <button onclick="performUnlink(${m.machine_id})" style="background: #dc3545; width: auto; margin-top: 0; padding: 5px 10px;">Unlink</button>
-                        </td>
+                        <td>${m.machine_name}</td>
+                        <td>${m.internal_ip}</td>
+                        <td>${m.machine_type}</td>
+                        <td><button onclick="performUnlink(${m.machine_id})" class="btn-danger btn-sm" style="width: auto; margin: 0; padding: 4px 10px;">Unlink</button></td>
                     </tr>`;
                 });
-                html += '</table>';
+                html += '</tbody></table>';
                 listDiv.innerHTML = html;
-            } catch (error) {
-                console.error("Error fetching user machines:", error);
-                listDiv.innerHTML = '<p class="error">Error loading machines.</p>';
-            }
+            } catch (error) { console.error("Error fetching user machines:", error); listDiv.innerHTML = '<p class="error">Error loading machines.</p>'; }
         }
 
         async function performUnlink(machineId) {
             if (!confirm("Are you sure you want to unlink this machine?")) return;
-
             try {
-                const response = await fetch('/api/admin/unlink', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ machine_id: machineId })
-                });
-
-                if (response.ok) {
-                    fetchUserMachines(); // Refresh user list
-                    fetchManageData();   // Refresh unassigned dropdown
-                } else {
-                    alert("Failed to unlink machine.");
-                }
-            } catch (error) {
-                console.error("Error unlinking machine:", error);
-                alert("An error occurred.");
-            }
+                const response = await fetch('/api/admin/unlink', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ machine_id: machineId }) });
+                if (response.ok) { fetchUserMachines(); fetchManageData(); } else { alert("Failed to unlink machine."); }
+            } catch (error) { console.error("Error unlinking machine:", error); alert("An error occurred."); }
         }
 
         async function fetchDeploymentRequests() {
             if (userRole !== 'admin') return;
             const listDiv = document.getElementById('deployment-requests-list');
-            
             try {
                 const response = await fetch('/api/admin/deployment_requests');
                 const requests = await response.json();
-
-                if (requests.length === 0) {
-                    listDiv.innerHTML = '<p style="color: #888;">No pending requests found.</p>';
-                    return;
-                }
-
-                let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
-                html += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">User</th><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Playbooks</th><th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Actions</th></tr>';
-                
+                if (requests.length === 0) { listDiv.innerHTML = '<p style="color: var(--text-muted); font-size: 12px;">No pending requests found.</p>'; return; }
+                let html = '<table class="data-table"><thead><tr><th>User</th><th>Playbooks</th><th>Actions</th></tr></thead><tbody>';
                 requests.forEach(r => {
                     html += `<tr>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${r.username}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${r.playbook_names.replace(/,/g, ', ')}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
-                            <button onclick="processRequest(${r.id}, 'approve')" style="background: #28a745; width: auto; margin-top: 0; padding: 5px 10px; margin-right: 5px;">Approve</button>
-                            <button onclick="processRequest(${r.id}, 'deny')" style="background: #dc3545; width: auto; margin-top: 0; padding: 5px 10px;">Deny</button>
+                        <td>${r.username}</td>
+                        <td>${r.playbook_names.replace(/,/g, ', ')}</td>
+                        <td style="display: flex; gap: 6px;">
+                            <button onclick="processRequest(${r.id}, 'approve')" class="btn-green btn-sm" style="width: auto; margin: 0; padding: 4px 10px;">✓ Approve</button>
+                            <button onclick="processRequest(${r.id}, 'deny')" class="btn-danger btn-sm" style="width: auto; margin: 0; padding: 4px 10px;">✕ Deny</button>
                         </td>
                     </tr>`;
                 });
-                html += '</table>';
+                html += '</tbody></table>';
                 listDiv.innerHTML = html;
-            } catch (error) {
-                console.error("Error fetching deployment requests:", error);
-            }
+            } catch (error) { console.error("Error fetching deployment requests:", error); }
         }
 
         async function processRequest(requestId, action) {
             if (!confirm(`Are you sure you want to ${action} this request?`)) return;
-
             try {
-                const response = await fetch('/api/admin/process_request', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ request_id: requestId, action: action })
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    alert(result.message);
-                    fetchDeploymentRequests();
-                    
-                    if (result.deployments) {
-                        // If approved and started, we could optionally show logs
-                        console.log("Started tasks:", result.deployments);
-                    }
-                } else {
-                    alert("Failed to process request.");
-                }
-            } catch (error) {
-                console.error("Error processing request:", error);
-                alert("An error occurred.");
-            }
+                const response = await fetch('/api/admin/process_request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request_id: requestId, action: action }) });
+                if (response.ok) { const result = await response.json(); alert(result.message); fetchDeploymentRequests(); if (result.deployments) { console.log("Started tasks:", result.deployments); } } else { alert("Failed to process request."); }
+            } catch (error) { console.error("Error processing request:", error); alert("An error occurred."); }
         }
 
         async function performAssignment() {
             const machineId = document.getElementById('assignMachine').value;
             const userId = document.getElementById('assignUser').value;
             const msgDiv = document.getElementById('manage-message');
-
-            if (!machineId || !userId) {
-                alert("Please select both a machine and a client.");
-                return;
-            }
-
+            if (!machineId || !userId) { alert("Please select both a machine and a client."); return; }
             try {
-                const response = await fetch('/api/admin/assign', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ machine_id: machineId, user_id: userId })
-                });
+                const response = await fetch('/api/admin/assign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ machine_id: machineId, user_id: userId }) });
                 const result = await response.json();
-
-                if (response.ok) {
-                    msgDiv.textContent = result.message;
-                    msgDiv.className = 'message success';
-                    msgDiv.style.display = 'block';
-                    fetchManageData(); // Refresh dropdowns
-                    fetchUserMachines(); // Refresh user's machine list
-                } else {
-                    throw new Error(result.error || "Assignment failed");
-                }
-            } catch (error) {
-                msgDiv.textContent = error.message;
-                msgDiv.className = 'message error';
-                msgDiv.style.display = 'block';
-            }
+                if (response.ok) { msgDiv.textContent = result.message; msgDiv.className = 'message success'; msgDiv.style.display = 'block'; fetchManageData(); fetchUserMachines(); } else { throw new Error(result.error || "Assignment failed"); }
+            } catch (error) { msgDiv.textContent = error.message; msgDiv.className = 'message error'; msgDiv.style.display = 'block'; }
         }
 
         async function addMachine() {
@@ -445,84 +746,44 @@
             const internalIP = document.getElementById('newMachineIP').value;
             const ownerId = document.getElementById('newMachineOwner').value;
             const msgDiv = document.getElementById('add-machine-message');
-
-            if (!proxmoxVMID || !machineName || !internalIP) {
-                alert("Please fill in all machine details.");
-                return;
-            }
-
+            if (!proxmoxVMID || !machineName || !internalIP) { alert("Please fill in all machine details."); return; }
             try {
-                const response = await fetch('/api/machines/add', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        proxmox_vmid: proxmoxVMID,
-                        machine_name: machineName,
-                        machine_type: machineType,
-                        internal_ip: internalIP,
-                        owner_id: ownerId || null
-                    })
-                });
+                const response = await fetch('/api/machines/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ proxmox_vmid: proxmoxVMID, machine_name: machineName, machine_type: machineType, internal_ip: internalIP, owner_id: ownerId || null }) });
                 const result = await response.json();
-
                 if (response.ok) {
-                    msgDiv.textContent = result.message;
-                    msgDiv.className = 'message success';
-                    msgDiv.style.display = 'block';
-                    // Clear form
-                    document.getElementById('newMachineVMID').value = '';
-                    document.getElementById('newMachineName').value = '';
-                    document.getElementById('newMachineIP').value = '';
-                    document.getElementById('newMachineOwner').value = '';
-                    // Refresh data
+                    msgDiv.textContent = result.message; msgDiv.className = 'message success'; msgDiv.style.display = 'block';
+                    document.getElementById('newMachineVMID').value = ''; document.getElementById('newMachineName').value = ''; document.getElementById('newMachineIP').value = ''; document.getElementById('newMachineOwner').value = '';
                     fetchManageData();
-                } else {
-                    throw new Error(result.error || "Failed to add machine");
-                }
-            } catch (error) {
-                msgDiv.textContent = error.message;
-                msgDiv.className = 'message error';
-                msgDiv.style.display = 'block';
-            }
+                } else { throw new Error(result.error || "Failed to add machine"); }
+            } catch (error) { msgDiv.textContent = error.message; msgDiv.className = 'message error'; msgDiv.style.display = 'block'; }
         }
 
         async function fetchMachines() {
             const machinesList = document.getElementById('machines-list');
-            machinesList.innerHTML = '<p>Loading machines...</p>';
-            
+            machinesList.innerHTML = '<p style="color: var(--text-muted); font-size: 12px;">Loading machines...</p>';
             try {
                 const response = await fetch('/api/machines');
                 const machines = await response.json();
-                
                 machinesList.innerHTML = '';
-                if (machines.length === 0) {
-                    machinesList.innerHTML = '<p>No machines assigned to you.</p>';
-                    return;
-                }
-                
+                if (machines.length === 0) { machinesList.innerHTML = '<p style="color: var(--text-muted); font-size: 12px;">No machines assigned to you.</p>'; return; }
                 machines.forEach(machine => {
                     const card = document.createElement('div');
-                    card.style.cssText = 'background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
-                    
+                    card.className = 'machine-card';
                     let ownerInfo = '';
                     if (userRole === 'admin' && machine.owner_name) {
-                        ownerInfo = `<p style="margin: 5px 0; font-size: 0.9em; color: #666;">Owner: <strong>${machine.owner_name}</strong></p>`;
+                        ownerInfo = `<div class="machine-meta">Owner: <strong>${machine.owner_name}</strong></div>`;
                     }
-
                     card.innerHTML = `
-                        <h3 style="margin: 0 0 10px 0; color: #007bff;">${machine.machine_name}</h3>
-                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">IP: ${machine.internal_ip}</p>
-                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">Type: ${machine.machine_type}</p>
-                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">VMID: ${machine.proxmox_vmid}</p>
+                        <div class="machine-card-name">${machine.machine_name}</div>
+                        <div class="machine-meta">IP: <strong>${machine.internal_ip}</strong></div>
+                        <div class="machine-meta">Type: <strong>${machine.machine_type}</strong></div>
+                        <div class="machine-meta">VMID: <strong>${machine.proxmox_vmid}</strong></div>
                         ${ownerInfo}
-                        <button onclick="connectToMachine('${machine.machine_name}', '${machine.internal_ip}')" style="margin-top: 15px;">Open Terminal</button>
+                        <button onclick="connectToMachine('${machine.machine_name}', '${machine.internal_ip}')" class="btn-blue" style="margin-top: 14px; width: 100%; font-size: 11px;">🖥 Open Terminal</button>
                     `;
                     machinesList.appendChild(card);
                 });
-            } catch (error) {
-                console.error("Error fetching machines:", error);
-                machinesList.innerHTML = `<p class="error">Error loading machines: ${error.message}</p>`;
-            }
+            } catch (error) { console.error("Error fetching machines:", error); machinesList.innerHTML = `<p class="error">Error loading machines: ${error.message}</p>`; }
         }
 
         function connectToMachine(name, ip) {
@@ -530,16 +791,11 @@
             const wrapper = document.getElementById('ttyWrapper');
             const placeholder = document.getElementById('ttyPlaceholder');
             const ttyTitle = document.getElementById('ttyTitle');
-
-            // Construct TTY URL (using default port 7681)
             const url = `http://${ip}:7681`;
-            
-            ttyTitle.textContent = `Terminal - ${name} (${ip})`;
+            ttyTitle.textContent = `Terminal — ${name} (${ip})`;
             iframe.src = url;
             wrapper.style.display = 'block';
             placeholder.style.display = 'none';
-            
-            // Scroll to terminal
             wrapper.scrollIntoView({ behavior: 'smooth' });
         }
 
@@ -547,7 +803,6 @@
             const iframe = document.getElementById('ttyIframe');
             const wrapper = document.getElementById('ttyWrapper');
             const placeholder = document.getElementById('ttyPlaceholder');
-            
             iframe.src = '';
             wrapper.style.display = 'none';
             placeholder.style.display = 'block';
@@ -566,60 +821,38 @@
                 const response = await fetch('/list_playbooks');
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-                
                 playbookList.innerHTML = '';
-                if (data.playbooks.length === 0) {
-                    playbookList.innerHTML = '<p style="padding: 10px;">No playbooks available.</p>';
-                    return;
-                }
-
+                if (data.playbooks.length === 0) { playbookList.innerHTML = '<p style="padding: 14px; color: var(--text-muted); font-size: 12px;">No playbooks available.</p>'; return; }
                 data.playbooks.forEach((playbook, index) => {
                     const item = document.createElement('div');
                     item.className = 'playbook-item';
-                    item.innerHTML = `
-                        <input type="checkbox" id="pb-${index}" value="${playbook}">
-                        <label for="pb-${index}">${playbook}</label>
-                    `;
-                    item.onclick = (e) => {
-                        if (e.target.tagName !== 'INPUT') {
-                            const cb = item.querySelector('input');
-                            cb.checked = !cb.checked;
-                        }
-                    };
+                    item.innerHTML = `<input type="checkbox" id="pb-${index}" value="${playbook}"><label for="pb-${index}">${playbook}</label>`;
+                    item.onclick = (e) => { if (e.target.tagName !== 'INPUT') { const cb = item.querySelector('input'); cb.checked = !cb.checked; } };
                     playbookList.appendChild(item);
                 });
-            } catch (error) {
-                console.error("Error fetching playbooks:", error);
-                playbookList.innerHTML = `<p class="error">Error: ${error.message}</p>`;
-            }
+            } catch (error) { console.error("Error fetching playbooks:", error); playbookList.innerHTML = `<p class="error" style="padding: 10px;">Error: ${error.message}</p>`; }
         }
 
         function createLogTab(playbookName, taskId) {
             const tabId = `tab-${taskId}`;
             const contentId = `content-${taskId}`;
-            
-            // Create Tab
             const tab = document.createElement('div');
             tab.className = 'log-tab';
             tab.id = tabId;
             tab.innerHTML = `<span class="status-icon">⏳</span> ${playbookName}`;
             tab.onclick = () => switchTab(taskId);
             logTabs.appendChild(tab);
-            
-            // Create Content
             const content = document.createElement('div');
             content.className = 'log-content';
             content.id = contentId;
-            content.innerHTML = `<pre id="log-${taskId}">Initializing log for ${playbookName}...</pre>`;
+            content.innerHTML = `<pre id="log-${taskId}">// Initializing log for ${playbookName}...</pre>`;
             logContainer.appendChild(content);
-            
             return { tab, content };
         }
 
         function switchTab(taskId) {
             document.querySelectorAll('.log-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.log-content').forEach(c => c.classList.remove('active'));
-            
             document.getElementById(`tab-${taskId}`).classList.add('active');
             document.getElementById(`content-${taskId}`).classList.add('active');
         }
@@ -627,12 +860,10 @@
         function updateTabStatus(taskId, status) {
             const tab = document.getElementById(`tab-${taskId}`);
             if (!tab) return;
-            
             let icon = '⏳';
             if (status === 'success') icon = '✅';
             if (status === 'error') icon = '❌';
             if (status === 'running') icon = '🚀';
-            
             tab.querySelector('.status-icon').textContent = icon;
         }
 
@@ -640,48 +871,24 @@
             return new Promise((resolve) => {
                 const logElement = document.getElementById(`log-${taskId}`);
                 updateTabStatus(taskId, 'running');
-                
                 const interval = setInterval(async () => {
                     try {
                         const response = await fetch(`/get_log/${taskId}`);
                         if (!response.ok) return;
-                        
                         const result = await response.json();
                         if (result.log) {
                             logElement.textContent = result.log;
                             logElement.scrollTop = logElement.scrollHeight;
-
-                            // Auto-Registration Logic
                             const vmidMatch = result.log.match(/VMID[:=]\s*(\d+)/i);
                             const ipMatch = result.log.match(/IP[:=]\s*([\d\.]+)/i);
                             const nameMatch = result.log.match(/NAME[:=]\s*([a-zA-Z0-9\-_]+)/i);
                             const typeMatch = result.log.match(/TYPE[:=]\s*(lxc|qemu)/i);
-
                             if (vmidMatch && ipMatch) {
-                                fetch('/api/machines/auto_register', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        proxmox_vmid: vmidMatch[1],
-                                        internal_ip: ipMatch[1],
-                                        machine_name: nameMatch ? nameMatch[1] : `VM-${vmidMatch[1]}`,
-                                        machine_type: typeMatch ? typeMatch[1] : 'lxc'
-                                    })
-                                });
+                                fetch('/api/machines/auto_register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ proxmox_vmid: vmidMatch[1], internal_ip: ipMatch[1], machine_name: nameMatch ? nameMatch[1] : `VM-${vmidMatch[1]}`, machine_type: typeMatch ? typeMatch[1] : 'lxc' }) });
                             }
                         }
-
-                        if (result.finished) {
-                            clearInterval(interval);
-                            updateTabStatus(taskId, 'success');
-                            resolve(true);
-                        }
-                    } catch (error) {
-                        console.error(`Error polling logs for ${taskId}:`, error);
-                        clearInterval(interval);
-                        updateTabStatus(taskId, 'error');
-                        resolve(false);
-                    }
+                        if (result.finished) { clearInterval(interval); updateTabStatus(taskId, 'success'); resolve(true); }
+                    } catch (error) { console.error(`Error polling logs for ${taskId}:`, error); clearInterval(interval); updateTabStatus(taskId, 'error'); resolve(false); }
                 }, 2000);
             });
         }
@@ -689,46 +896,27 @@
         deployButton.addEventListener('click', async () => {
             const selectedCheckboxes = Array.from(playbookList.querySelectorAll('input:checked'));
             const selectedPlaybooks = selectedCheckboxes.map(cb => cb.value);
-
-            if (selectedPlaybooks.length === 0) {
-                alert('Please select at least one playbook.');
-                return;
-            }
-
-            // UI Reset
+            if (selectedPlaybooks.length === 0) { alert('Please select at least one playbook.'); return; }
             deployButton.disabled = true;
             messageDiv.textContent = `Starting sequential deployment of ${selectedPlaybooks.length} playbook(s)...`;
             messageDiv.className = 'message info';
             messageDiv.style.display = 'block';
-            
-            // Clear previous logs
             logTabs.innerHTML = '';
             logTabs.style.display = 'flex';
-            logContainer.innerHTML = ''; // This removes the initialOutput as well
-
+            logContainer.innerHTML = '';
             for (let i = 0; i < selectedPlaybooks.length; i++) {
                 const playbook = selectedPlaybooks[i];
                 messageDiv.textContent = `Deploying (${i + 1}/${selectedPlaybooks.length}): ${playbook}...`;
-                
                 try {
-                    const response = await fetch(`/deploy_playbook`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ playbook_names: [playbook] }) // Deploy one at a time
-                    });
-
+                    const response = await fetch(`/deploy_playbook`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playbook_names: [playbook] }) });
                     const result = await response.json();
                     if (!response.ok) throw new Error(result.error || 'Deployment failed');
-
                     if (result.deployments && result.deployments.length > 0) {
                         const dep = result.deployments[0];
                         if (dep.error) throw new Error(dep.error);
-                        
                         const taskId = dep.task_id;
                         createLogTab(playbook, taskId);
                         switchTab(taskId);
-                        
-                        // Wait for this one to finish before starting next
                         await pollLogs(taskId, playbook);
                     }
                 } catch (error) {
@@ -738,18 +926,16 @@
                     switchTab(errorTaskId);
                     document.getElementById(`log-${errorTaskId}`).textContent = `Error starting deployment: ${error.message}`;
                     updateTabStatus(errorTaskId, 'error');
-                    // Continue to next or stop? Let's stop on error.
                     messageDiv.textContent = `Deployment stopped due to error in ${playbook}.`;
                     messageDiv.className = 'message error';
                     deployButton.disabled = false;
                     return;
                 }
             }
-
-            messageDiv.textContent = "All deployments finished!";
+            messageDiv.textContent = "✓ All deployments finished!";
             messageDiv.className = 'message success';
             deployButton.disabled = false;
-            fetchMachines(); // Refresh machines list
+            fetchMachines();
         });
 
         fetchPlaybooks();
