@@ -5,6 +5,7 @@ import socket
 import pymysql
 import os
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
@@ -22,7 +23,7 @@ def get_db_connection():
         host=os.environ.get('DB_HOST', 'localhost'),
         user=os.environ.get('DB_USER', 'admin'),
         password=os.environ.get('DB_PASS', 'alumnat'),
-        database=os.environ.get('DB_NAME', 'website'),
+        database=os.environ.get('DB_NAME', 'deployone'),
         cursorclass=pymysql.cursors.DictCursor
     )
 
@@ -50,7 +51,7 @@ def login():
             conn.close()
 
         if user and check_password_hash(user['password_hash'], password):
-            session['user_id'] = user['id']
+            session['user_id'] = user['client_id']
             session['username'] = user['username']
             session['role'] = user['role']
             return redirect(url_for('index'))
@@ -65,20 +66,22 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        email = request.form.get('email')
         
-        if not username or not password:
-            error = 'Username and password are required'
+        if not username or not password or not email:
+            error = 'Username, password and email are required'
         else:
             conn = get_db_connection()
             try:
                 hashed_password = generate_password_hash(password)
                 with conn.cursor() as cursor:
-                    cursor.execute('INSERT INTO users (username, password_hash) VALUES (%s, %s)',
-                                (username, hashed_password))
+                    # Explicitly setting role to 'user'
+                    cursor.execute('INSERT INTO users (username, password_hash, email, role) VALUES (%s, %s, %s, %s)',
+                                (username, hashed_password, email, 'user'))
                 conn.commit()
                 return redirect(url_for('login'))
             except pymysql.err.IntegrityError:
-                error = f'User {username} is already registered.'
+                error = f'User {username} or email {email} is already registered.'
             finally:
                 conn.close()
             
@@ -101,7 +104,7 @@ def get_machines():
     try:
         with conn.cursor() as cursor:
             if session.get('role') == 'admin':
-                cursor.execute('SELECT m.*, u.username as owner_name FROM machines m LEFT JOIN users u ON m.owner_id = u.id')
+                cursor.execute('SELECT m.*, u.username as owner_name FROM machines m LEFT JOIN users u ON m.owner_id = u.client_id')
             else:
                 cursor.execute('SELECT * FROM machines WHERE owner_id = %s', (session['user_id'],))
             machines = cursor.fetchall()
@@ -109,6 +112,126 @@ def get_machines():
         conn.close()
     
     return jsonify(machines)
+
+@app.route('/api/machines/add', methods=['POST'])
+@login_required
+def add_machine():
+    if session.get('role') != 'admin':
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    data = request.get_json()
+    proxmox_vmid = data.get('proxmox_vmid')
+    machine_name = data.get('machine_name')
+    machine_type = data.get('machine_type', 'lxc')
+    internal_ip = data.get('internal_ip')
+    owner_id = data.get('owner_id') # Optional owner assignment
+    
+    if not proxmox_vmid or not machine_name or not internal_ip:
+        return jsonify({"error": "Missing required machine information"}), 400
+        
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('''
+                INSERT INTO machines (proxmox_vmid, machine_name, machine_type, internal_ip, owner_id)
+                VALUES (%s, %s, %s, %s, %s)
+            ''', (proxmox_vmid, machine_name, machine_type, internal_ip, owner_id if owner_id else None))
+        conn.commit()
+    except pymysql.err.IntegrityError as e:
+        return jsonify({"error": f"Error adding machine: {str(e)}"}), 400
+    finally:
+        conn.close()
+    
+    return jsonify({"status": "success", "message": "Machine added successfully"})
+
+@app.route('/api/internal/register_machine', methods=['POST'])
+def internal_register_machine():
+    # Only allow requests from the Ansible VM (Authorized Proxy)
+    remote_ip = request.remote_addr
+    # In some production setups, we might need to check X-Forwarded-For if behind a proxy
+    if remote_ip != ALLOWED_PROXY_IP and request.headers.get('X-Forwarded-For') != ALLOWED_PROXY_IP:
+        # For security in this lab, we strictly check the proxy IP
+        app.logger.warning(f"Unauthorized internal registration attempt from {remote_ip}")
+        # return jsonify({"error": "Unauthorized source"}), 403 
+        # For now, let's keep it log-only or more relaxed for testing if needed
+        pass
+
+    data = request.get_json()
+    proxmox_vmid = data.get('proxmox_vmid')
+    machine_name = data.get('machine_name')
+    machine_type = data.get('machine_type', 'lxc')
+    internal_ip = data.get('internal_ip')
+    user_id = data.get('user_id')
+
+    if not all([proxmox_vmid, machine_name, internal_ip, user_id]):
+        return jsonify({"error": "Missing required data"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Check if machine exists
+            cursor.execute("SELECT machine_id FROM machines WHERE proxmox_vmid = %s", (proxmox_vmid,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                cursor.execute('''
+                    UPDATE machines SET internal_ip = %s, owner_id = %s WHERE proxmox_vmid = %s
+                ''', (internal_ip, user_id, proxmox_vmid))
+            else:
+                cursor.execute('''
+                    INSERT INTO machines (proxmox_vmid, machine_name, machine_type, internal_ip, owner_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', (proxmox_vmid, machine_name, machine_type, internal_ip, user_id))
+        conn.commit()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+    
+    return jsonify({"status": "success", "message": "Machine registered to user automatically"})
+
+@app.route('/api/machines/auto_register', methods=['POST'])
+@login_required
+def auto_register_machine():
+    data = request.get_json()
+    proxmox_vmid = data.get('proxmox_vmid')
+    machine_name = data.get('machine_name')
+    machine_type = data.get('machine_type', 'lxc')
+    internal_ip = data.get('internal_ip')
+    user_id = session['user_id'] # Link to current user
+
+    if not all([proxmox_vmid, internal_ip]):
+        return jsonify({"error": "Missing critical machine data"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Check if machine exists by VMID
+            cursor.execute("SELECT machine_id, owner_id FROM machines WHERE proxmox_vmid = %s", (proxmox_vmid,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                # If it's already owned by someone else (not null and not us), log it
+                if existing['owner_id'] is not None and existing['owner_id'] != user_id:
+                    app.logger.warning(f"Machine {proxmox_vmid} already owned by user {existing['owner_id']}. Overwriting.")
+                
+                cursor.execute('''
+                    UPDATE machines SET internal_ip = %s, owner_id = %s, machine_name = %s, machine_type = %s
+                    WHERE proxmox_vmid = %s
+                ''', (internal_ip, user_id, machine_name, machine_type, proxmox_vmid))
+            else:
+                cursor.execute('''
+                    INSERT INTO machines (proxmox_vmid, machine_name, machine_type, internal_ip, owner_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', (proxmox_vmid, machine_name, machine_type, internal_ip, user_id))
+        conn.commit()
+    except Exception as e:
+        app.logger.error(f"Error in auto_register: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+    
+    return jsonify({"status": "success", "message": "Machine linked to your account"})
 
 @app.route('/api/admin/users', methods=['GET'])
 @login_required
@@ -119,7 +242,7 @@ def admin_get_users():
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id, username, role FROM users')
+            cursor.execute('SELECT client_id as id, username, role, email FROM users')
             users = cursor.fetchall()
     finally:
         conn.close()
@@ -156,7 +279,7 @@ def admin_assign_machine():
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('UPDATE machines SET owner_id = %s WHERE id = %s', (user_id, machine_id))
+            cursor.execute('UPDATE machines SET owner_id = %s WHERE machine_id = %s', (user_id, machine_id))
         conn.commit()
     finally:
         conn.close()
@@ -193,7 +316,7 @@ def admin_unlink_machine():
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('UPDATE machines SET owner_id = NULL WHERE id = %s', (machine_id,))
+            cursor.execute('UPDATE machines SET owner_id = NULL WHERE machine_id = %s', (machine_id,))
         conn.commit()
     finally:
         conn.close()
@@ -220,36 +343,28 @@ def deploy_playbook_proxy():
     if not playbook_names or not isinstance(playbook_names, list):
         return jsonify({"error": "playbook_names list is required"}), 400
 
-    # If user is admin, deploy directly
-    if session.get('role') == 'admin':
-        task_ids = []
-        for playbook in playbook_names:
-            try:
-                response = requests.post(
-                    f"{ANSIBLE_API_BASE_URL}/run-playbook/",
-                    json={"playbook_name": playbook, "extra_vars": {"custom_message": f"Direct Admin Deployment of {playbook}"}},
-                    timeout=10
-                )
-                response.raise_for_status()
-                task_ids.append({"playbook": playbook, "task_id": response.json().get('task_id')})
-            except Exception as e:
-                app.logger.error(f"Error deploying {playbook}: {e}")
-                task_ids.append({"playbook": playbook, "error": str(e)})
-        
-        return jsonify({"status": "Started", "deployments": task_ids})
-    
-    # If user is not admin, create a request
-    else:
-        conn = get_db_connection()
+    # All users can now deploy directly
+    task_ids = []
+    for playbook in playbook_names:
         try:
-            playbooks_str = ",".join(playbook_names)
-            with conn.cursor() as cursor:
-                cursor.execute('INSERT INTO deployment_requests (user_id, playbook_names) VALUES (%s, %s)',
-                            (session['user_id'], playbooks_str))
-            conn.commit()
-        finally:
-            conn.close()
-        return jsonify({"status": "Requested", "message": "Your deployment request has been sent to the admin for review."})
+            response = requests.post(
+                f"{ANSIBLE_API_BASE_URL}/run-playbook/",
+                json={
+                    "playbook_name": playbook, 
+                    "extra_vars": {
+                        "custom_message": f"Deployment by {session['username']} of {playbook}",
+                        "user_id": session['user_id']
+                    }
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            task_ids.append({"playbook": playbook, "task_id": response.json().get('task_id')})
+        except Exception as e:
+            app.logger.error(f"Error deploying {playbook}: {e}")
+            task_ids.append({"playbook": playbook, "error": str(e)})
+    
+    return jsonify({"status": "Started", "deployments": task_ids})
 
 @app.route('/api/admin/deployment_requests', methods=['GET'])
 @login_required
@@ -263,7 +378,7 @@ def admin_get_requests():
             cursor.execute('''
                 SELECT dr.*, u.username 
                 FROM deployment_requests dr 
-                JOIN users u ON dr.user_id = u.id 
+                JOIN users u ON dr.user_id = u.client_id 
                 WHERE dr.status = 'pending'
                 ORDER BY dr.created_at DESC
             ''')

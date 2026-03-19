@@ -18,39 +18,46 @@ def init_db():
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
+            # Disable foreign key checks to prevent initialization errors
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+
             # Create users table
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 role VARCHAR(50) NOT NULL DEFAULT 'user'
-            )
+            ) ENGINE=InnoDB
             ''')
 
             # Create machines table
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS machines (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 ip VARCHAR(255) NOT NULL,
                 ttyd_port INT NOT NULL DEFAULT 7681,
-                owner_id INT,
-                FOREIGN KEY (owner_id) REFERENCES users (id)
-            )
+                owner_id BIGINT,
+                FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE SET NULL
+            ) ENGINE=InnoDB
             ''')
 
             # Create deployment_requests table
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS deployment_requests (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                user_id BIGINT NOT NULL,
                 playbook_names TEXT NOT NULL,
                 status VARCHAR(50) NOT NULL DEFAULT 'pending',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            ) ENGINE=InnoDB
             ''')
+
+            # Re-enable foreign key checks
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
+            conn.commit()
 
             # Add admin user if it doesn't exist
             cursor.execute("SELECT id FROM users WHERE username = %s", ('admin',))

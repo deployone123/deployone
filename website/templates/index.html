@@ -87,11 +87,7 @@
                 </select>
             </div>
 
-            {% if user_role == 'admin' %}
-                <button id="deployButton">Deploy Selected Playbook(s)</button>
-            {% else %}
-                <button id="deployButton">Request Deployment(s) from Admin</button>
-            {% endif %}
+            <button id="deployButton">Deploy Selected Playbook(s)</button>
 
             <div id="message" class="message" style="display: none;"></div>
             
@@ -124,7 +120,42 @@
         <div id="manage-view" class="view-section container">
             <h3>Machine Assignment Management</h3>
             <div style="background: white; padding: 25px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 30px;">
-                <h4>Assign Machine to Client</h4>
+                <h4>Add & Assign New Machine</h4>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label for="newMachineVMID">Proxmox VMID:</label>
+                        <input type="number" id="newMachineVMID" placeholder="e.g. 101">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label for="newMachineName">Machine Name:</label>
+                        <input type="text" id="newMachineName" placeholder="e.g. My-Web-Server">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label for="newMachineType">Type:</label>
+                        <select id="newMachineType">
+                            <option value="lxc">LXC</option>
+                            <option value="qemu">QEMU (VM)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label for="newMachineIP">Internal IP:</label>
+                        <input type="text" id="newMachineIP" placeholder="e.g. 10.0.0.5">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label for="newMachineOwner">Assign to User:</label>
+                        <select id="newMachineOwner">
+                            <!-- Users loaded here -->
+                        </select>
+                    </div>
+                    <div style="flex: 0 0 100%; display: flex; justify-content: flex-end;">
+                        <button onclick="addMachine()" style="width: auto; padding: 10px 30px;">Create & Link Machine</button>
+                    </div>
+                </div>
+                <div id="add-machine-message" class="message" style="display: none;"></div>
+            </div>
+
+            <div style="background: white; padding: 25px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 30px;">
+                <h4>Link Existing Machine to Client</h4>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                     <div class="form-group" style="flex: 1; min-width: 200px;">
                         <label for="assignMachine">Machine:</label>
@@ -186,21 +217,28 @@
 
         async function fetchManageData() {
             if (userRole !== 'admin') return;
-            
+
             // Clear current selection
             document.getElementById('user-machines-list').innerHTML = '<p style="color: #888;">Select a client above to view and manage their assigned machines.</p>';
-            
+
             try {
                 // Fetch Users
                 const userResp = await fetch('/api/admin/users');
                 const users = await userResp.json();
+
+                // Populate both user selects
                 const userSelect = document.getElementById('assignUser');
+                const ownerSelect = document.getElementById('newMachineOwner');
+
                 userSelect.innerHTML = '<option value="">-- Select Client --</option>';
+                ownerSelect.innerHTML = '<option value="">-- Leave Unassigned --</option>';
+
                 users.forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u.id;
-                    opt.textContent = `${u.username} (${u.role})`;
-                    userSelect.appendChild(opt);
+                    opt.textContent = `${u.username} (${u.role}) - ${u.email}`;
+                    userSelect.appendChild(opt.cloneNode(true));
+                    ownerSelect.appendChild(opt);
                 });
 
                 // Fetch Unassigned Machines
@@ -210,15 +248,14 @@
                 machineSelect.innerHTML = '<option value="">-- Select Machine --</option>';
                 machines.forEach(m => {
                     const opt = document.createElement('option');
-                    opt.value = m.id;
-                    opt.textContent = `${m.name} (${m.ip})`;
+                    opt.value = m.machine_id;
+                    opt.textContent = `${m.machine_name} (${m.internal_ip}) - ${m.machine_type}`;
                     machineSelect.appendChild(opt);
                 });
             } catch (error) {
                 console.error("Error loading management data:", error);
             }
         }
-
         async function fetchUserMachines() {
             const userId = document.getElementById('assignUser').value;
             const listDiv = document.getElementById('user-machines-list');
@@ -240,14 +277,15 @@
                 }
 
                 let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
-                html += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Name</th><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">IP</th><th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Action</th></tr>';
+                html += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Name</th><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">IP</th><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Type</th><th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Action</th></tr>';
                 
                 machines.forEach(m => {
                     html += `<tr>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${m.name}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${m.ip}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${m.machine_name}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${m.internal_ip}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${m.machine_type}</td>
                         <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
-                            <button onclick="performUnlink(${m.id})" style="background: #dc3545; width: auto; margin-top: 0; padding: 5px 10px;">Unlink</button>
+                            <button onclick="performUnlink(${m.machine_id})" style="background: #dc3545; width: auto; margin-top: 0; padding: 5px 10px;">Unlink</button>
                         </td>
                     </tr>`;
                 });
@@ -376,6 +414,54 @@
             }
         }
 
+        async function addMachine() {
+            const proxmoxVMID = document.getElementById('newMachineVMID').value;
+            const machineName = document.getElementById('newMachineName').value;
+            const machineType = document.getElementById('newMachineType').value;
+            const internalIP = document.getElementById('newMachineIP').value;
+            const ownerId = document.getElementById('newMachineOwner').value;
+            const msgDiv = document.getElementById('add-machine-message');
+
+            if (!proxmoxVMID || !machineName || !internalIP) {
+                alert("Please fill in all machine details.");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/machines/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        proxmox_vmid: proxmoxVMID,
+                        machine_name: machineName,
+                        machine_type: machineType,
+                        internal_ip: internalIP,
+                        owner_id: ownerId || null
+                    })
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    msgDiv.textContent = result.message;
+                    msgDiv.className = 'message success';
+                    msgDiv.style.display = 'block';
+                    // Clear form
+                    document.getElementById('newMachineVMID').value = '';
+                    document.getElementById('newMachineName').value = '';
+                    document.getElementById('newMachineIP').value = '';
+                    document.getElementById('newMachineOwner').value = '';
+                    // Refresh data
+                    fetchManageData();
+                } else {
+                    throw new Error(result.error || "Failed to add machine");
+                }
+            } catch (error) {
+                msgDiv.textContent = error.message;
+                msgDiv.className = 'message error';
+                msgDiv.style.display = 'block';
+            }
+        }
+
         async function fetchMachines() {
             const machinesList = document.getElementById('machines-list');
             machinesList.innerHTML = '<p>Loading machines...</p>';
@@ -400,11 +486,12 @@
                     }
 
                     card.innerHTML = `
-                        <h3 style="margin: 0 0 10px 0; color: #007bff;">${machine.name}</h3>
-                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">IP: ${machine.ip}</p>
-                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">TTY Port: ${machine.ttyd_port}</p>
+                        <h3 style="margin: 0 0 10px 0; color: #007bff;">${machine.machine_name}</h3>
+                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">IP: ${machine.internal_ip}</p>
+                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">Type: ${machine.machine_type}</p>
+                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">VMID: ${machine.proxmox_vmid}</p>
                         ${ownerInfo}
-                        <button onclick="connectToMachine('${machine.name}', '${machine.ip}', ${machine.ttyd_port})" style="margin-top: 15px;">Open Terminal</button>
+                        <button onclick="connectToMachine('${machine.machine_name}', '${machine.internal_ip}')" style="margin-top: 15px;">Open Terminal</button>
                     `;
                     machinesList.appendChild(card);
                 });
@@ -414,14 +501,14 @@
             }
         }
 
-        function connectToMachine(name, ip, port) {
+        function connectToMachine(name, ip) {
             const iframe = document.getElementById('ttyIframe');
             const wrapper = document.getElementById('ttyWrapper');
             const placeholder = document.getElementById('ttyPlaceholder');
             const ttyTitle = document.getElementById('ttyTitle');
 
-            // Construct TTY URL (assuming HTTP for simplicity in school project)
-            const url = `http://${ip}:${port}`;
+            // Construct TTY URL (using default port 7681)
+            const url = `http://${ip}:7681`;
             
             ttyTitle.textContent = `Terminal - ${name} (${ip})`;
             iframe.src = url;
@@ -480,14 +567,41 @@
                 if (result.log) {
                     outputDiv.textContent = result.log;
                     outputDiv.scrollTop = outputDiv.scrollHeight; // Auto-scroll to bottom
+
+                    // --- Auto-Registration Logic ---
+                    // Scan logs for machine details: VMID=xxx, IP=xxx, NAME=xxx, TYPE=xxx
+                    // Common Ansible output patterns: "changed: [localhost] => {..." or custom debug messages
+                    const vmidMatch = result.log.match(/VMID[:=]\s*(\d+)/i);
+                    const ipMatch = result.log.match(/IP[:=]\s*([\d\.]+)/i);
+                    const nameMatch = result.log.match(/NAME[:=]\s*([a-zA-Z0-9\-_]+)/i);
+                    const typeMatch = result.log.match(/TYPE[:=]\s*(lxc|qemu)/i);
+
+                    if (vmidMatch && ipMatch) {
+                        const machineData = {
+                            proxmox_vmid: vmidMatch[1],
+                            internal_ip: ipMatch[1],
+                            machine_name: nameMatch ? nameMatch[1] : `VM-${vmidMatch[1]}`,
+                            machine_type: typeMatch ? typeMatch[1] : 'lxc'
+                        };
+
+                        // Send to server to link with current user
+                        // We do this once per task if possible, but the server handles duplicates
+                        fetch('/api/machines/auto_register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(machineData)
+                        });
+                    }
                 }
 
                 if (result.finished) {
                     clearInterval(logInterval);
                     logInterval = null;
                     deployButton.disabled = false;
-                    messageDiv.textContent = "Deployment Finished!";
+                    messageDiv.textContent = "Deployment Finished! Any new machines have been linked to your account.";
                     messageDiv.className = 'message success';
+                    // Refresh machines list automatically
+                    fetchMachines();
                 }
             } catch (error) {
                 console.error("Error polling logs:", error);
@@ -534,11 +648,6 @@
                         messageDiv.textContent = "Deployment complete.";
                         deployButton.disabled = false;
                     }
-                } else if (result.status === 'Requested') {
-                    outputDiv.textContent = 'Request submitted successfully. Waiting for admin approval.';
-                    messageDiv.textContent = result.message;
-                    messageDiv.className = 'message success';
-                    deployButton.disabled = false;
                 } else {
                     outputDiv.textContent = 'Deployment processed.';
                     messageDiv.textContent = "Finished.";
