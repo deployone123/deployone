@@ -651,9 +651,12 @@
                             logElement.textContent = result.log;
                             logElement.scrollTop = logElement.scrollHeight;
 
-                            // Auto-Registration Logic (Simplified)
+                            // Auto-Registration Logic
                             const vmidMatch = result.log.match(/VMID[:=]\s*(\d+)/i);
                             const ipMatch = result.log.match(/IP[:=]\s*([\d\.]+)/i);
+                            const nameMatch = result.log.match(/NAME[:=]\s*([a-zA-Z0-9\-_]+)/i);
+                            const typeMatch = result.log.match(/TYPE[:=]\s*(lxc|qemu)/i);
+
                             if (vmidMatch && ipMatch) {
                                 fetch('/api/machines/auto_register', {
                                     method: 'POST',
@@ -661,8 +664,8 @@
                                     body: JSON.stringify({
                                         proxmox_vmid: vmidMatch[1],
                                         internal_ip: ipMatch[1],
-                                        machine_name: `VM-${vmidMatch[1]}`,
-                                        machine_type: 'lxc'
+                                        machine_name: nameMatch ? nameMatch[1] : `VM-${vmidMatch[1]}`,
+                                        machine_type: typeMatch ? typeMatch[1] : 'lxc'
                                     })
                                 });
                             }
