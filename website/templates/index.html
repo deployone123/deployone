@@ -6,6 +6,15 @@
     <title>DeployOne — Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <script>
+        // Immediate execution to prevent theme flicker
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
     <style>
         :root {
             --bg: #0a0c10;
@@ -25,6 +34,18 @@
             --info: #3b82f6;
         }
 
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --surface2: #f1f5f9;
+            --border: #e2e8f0;
+            --border2: #cbd5e1;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --text-dim: #475569;
+            --accent-dim: rgba(0,212,170,0.15);
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
@@ -34,6 +55,7 @@
             height: 100vh;
             overflow: hidden;
             display: flex;
+            transition: background 0.2s, color 0.2s;
         }
 
         /* ===== SIDEBAR ===== */
@@ -44,6 +66,7 @@
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
+            transition: background 0.2s, border-color 0.2s;
         }
 
         .sidebar-logo {
@@ -162,6 +185,43 @@
             align-items: center;
             justify-content: space-between;
             flex-shrink: 0;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--text);
+            padding: 5px 10px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            width: auto !important;
+            margin-top: 0 !important;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        [data-theme="light"] pre {
+            background: #ffffff;
+            border-color: var(--border2);
+            color: #334155;
+        }
+
+        [data-theme="light"] .playbook-list {
+            background: #ffffff;
+        }
+
+        [data-theme="light"] .log-tab.active {
+            background: #ffffff;
+            border-color: var(--border2);
         }
 
         .top-bar h2 {
@@ -169,6 +229,12 @@
             font-size: 16px;
             font-weight: 700;
             color: var(--text);
+        }
+
+        .top-bar-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .top-bar-badge {
@@ -503,7 +569,12 @@
     <div class="main-content">
         <div class="top-bar">
             <h2 id="view-title">Ansible Playbook Deployer</h2>
-            <span class="top-bar-badge" id="view-badge">ansible</span>
+            <div class="top-bar-controls">
+                <button onclick="toggleTheme()" class="theme-toggle" title="Toggle Light/Dark Mode">
+                    <span id="theme-icon">🌓</span>
+                </button>
+                <span class="top-bar-badge" id="view-badge">ansible</span>
+            </div>
         </div>
 
         <div class="content-area">
@@ -623,6 +694,20 @@
     </div><!-- end main-content -->
 
     <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            if (newTheme === 'light') {
+                html.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
         function switchView(viewId, element) {
             document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
             element.classList.add('active');

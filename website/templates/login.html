@@ -6,6 +6,14 @@
     <title>Login — DeployOne</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
     <style>
         :root {
             --bg: #0a0c10;
@@ -16,7 +24,17 @@
             --text: #e2e8f0;
             --text-muted: #64748b;
         }
+
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --text-muted: #64748b;
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
             font-family: 'JetBrains Mono', monospace;
             background: var(--bg);
@@ -27,6 +45,26 @@
             justify-content: center;
             position: relative;
             overflow: hidden;
+            transition: background 0.2s, color 0.2s;
+        }
+        
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            padding: 8px 12px;
+            font-size: 14px;
+            z-index: 10;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent);
         }
         body::before {
             content: '';
@@ -111,6 +149,7 @@
     </style>
 </head>
 <body>
+    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle Light/Dark Mode">🌓</button>
     <div class="card">
         <div class="logo">
             <div class="logo-icon">⚡</div>
@@ -134,5 +173,20 @@
         </form>
         <div class="footer-link">No account? <a href="{{ url_for('register') }}">Register here</a></div>
     </div>
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            if (newTheme === 'light') {
+                html.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+    </script>
 </body>
 </html>
