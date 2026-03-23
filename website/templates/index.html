@@ -909,11 +909,13 @@
                 playbookList.innerHTML = '';
                 if (data.playbooks.length === 0) { playbookList.innerHTML = '<p style="padding: 14px; color: var(--text-muted); font-size: 12px;">No playbooks available.</p>'; return; }
                 data.playbooks.forEach((playbook, index) => {
+                    const name = typeof playbook === 'object' ? playbook.display_name : playbook;
+                    const path = typeof playbook === 'object' ? playbook.full_path : playbook;
                     const item = document.createElement('div');
                     item.className = 'playbook-item';
                     item.innerHTML = `
-                        <input type="checkbox" id="pb-${index}" value="${playbook.full_path}">
-                        <label for="pb-${index}">${playbook.display_name}</label>
+                        <input type="checkbox" id="pb-${index}" value="${path}">
+                        <label for="pb-${index}">${name}</label>
                     `;
                     item.onclick = (e) => {
                         if (e.target.tagName !== 'INPUT') {
