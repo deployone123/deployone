@@ -826,10 +826,19 @@
                 data.playbooks.forEach((playbook, index) => {
                     const item = document.createElement('div');
                     item.className = 'playbook-item';
-                    item.innerHTML = `<input type="checkbox" id="pb-${index}" value="${playbook}"><label for="pb-${index}">${playbook}</label>`;
-                    item.onclick = (e) => { if (e.target.tagName !== 'INPUT') { const cb = item.querySelector('input'); cb.checked = !cb.checked; } };
+                    item.innerHTML = `
+                        <input type="checkbox" id="pb-${index}" value="${playbook.full_path}">
+                        <label for="pb-${index}">${playbook.display_name}</label>
+                    `;
+                    item.onclick = (e) => {
+                        if (e.target.tagName !== 'INPUT') {
+                            const cb = item.querySelector('input');
+                            cb.checked = !cb.checked;
+                        }
+                    };
                     playbookList.appendChild(item);
                 });
+
             } catch (error) { console.error("Error fetching playbooks:", error); playbookList.innerHTML = `<p class="error" style="padding: 10px;">Error: ${error.message}</p>`; }
         }
 
