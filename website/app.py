@@ -39,13 +39,14 @@ def login_required(f):
 def login():
     error = None
     if request.method == 'POST':
-        username = request.form.get('username')
+        identifier = request.form.get('username') # This can now be username or email
         password = request.form.get('password')
         
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+                # Check both username and email
+                cursor.execute('SELECT * FROM users WHERE username = %s OR email = %s', (identifier, identifier))
                 user = cursor.fetchone()
         finally:
             conn.close()
