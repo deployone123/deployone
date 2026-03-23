@@ -1,0 +1,74 @@
+---
+- name: Configurar Red Privada (VLAN) por Usuario
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/secrets.yml
+
+  vars:
+    # El nombre del usuario debe pasarse como variable extra
+    # Ejemplo: ansible-playbook vlan_setup.yml -e "target_user=usuario1"
+    target_user: "test_user" 
+    
+    # Configuración de Proxmox (basado en bdd.yml)
+    proxmox_host: "10.1.100.100"
+    proxmox_node: "deployone"
+    
+    # Configuración de la Base de Datos (ajustar según bddprueba.yml)
+    # Se asume que la BDD está en el contenedor bdd-server
+    db_host: "10.1.100.101" 
+    db_name: "deployone"
+    db_user: "admin_web"
+    db_pass: "CambiaEstaClave123!" # Idealmente cargado desde secrets.yml
+
+  tasks:
+    - name: 1. Obtener client_id del usuario desde MariaDB
+      community.mysql.mysql_query:
+        login_host: "{{ db_host }}"
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_pass }}"
+        login_db: "{{ db_name }}"
+        query: "SELECT client_id FROM users WHERE username = %s"
+        positional_args:
+          - "{{ target_user }}"
+      register: db_result
+
+    - name: 2. Validar que el usuario existe y extraer client_id
+      set_fact:
+        client_id: "{{ db_result.query_result[0][0].client_id }}"
+      when: db_result.row_count > 0
+
+    - name: 3. Fallar si el client_id no fue encontrado
+      fail:
+        msg: "Error: No se encontró el client_id para el usuario '{{ target_user }}' en la base de datos {{ db_name }}."
+      when: client_id is not defined
+
+    - name: 4. Verificar si el bridge 'vmbr{{ client_id }}' ya existe en Proxmox
+      shell: "pvesh get /nodes/{{ proxmox_node }}/network/vmbr{{ client_id }} --output-format json"
+      delegate_to: "{{ proxmox_host }}"
+      register: bridge_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: 5. Crear el bridge 'vmbr{{ client_id }}' en Proxmox (Red Privada)
+      shell: |
+        pvesh create /nodes/{{ proxmox_node }}/network \
+          --iface vmbr{{ client_id }} \
+          --type bridge \
+          --autostart 1 \
+          --bridge_ports none \
+          --comments "Red privada para usuario {{ target_user }}"
+      delegate_to: "{{ proxmox_host }}"
+      when: bridge_check.rc != 0
+      notify: "Aplicar Cambios de Red"
+
+    - name: 6. Mostrar información de la red creada
+      debug:
+        msg: "Se ha configurado la red privada para {{ target_user }} con VLAN/ID: {{ client_id }} (Bridge: vmbr{{ client_id }})"
+
+  handlers:
+    - name: Aplicar Cambios de Red
+      shell: "pvesh set /nodes/{{ proxmox_node }}/network"
+      delegate_to: "{{ proxmox_host }}"
+      # Nota: Aplicar cambios de red puede reiniciar interfaces. Usar con precaución.
