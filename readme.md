@@ -51,7 +51,8 @@ El proyecto se basa en una arquitectura de red segmentada para maximizar la segu
     ```
 
 4.  **Despliegue con Systemd:**
-    Copia el archivo de servicio incluido para habilitar el arranque automático:
+    1. Utilizar los .sh para automaticamente montar el servidor web y conectarlo a la base de datos.
+    2. Copiar el archivo de servicio incluido para habilitar el arranque automático:
     ```bash
     sudo cp deployone.service /etc/systemd/system/
     sudo systemctl enable --now deployone
