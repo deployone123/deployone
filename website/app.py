@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, g
 import requests
 import functools
 import socket
@@ -30,70 +30,63 @@ def get_db_connection():
 def login_required(f):
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        
-        # Tab Security: Each tab must prove it was authorized
+        # Extract Tab ID
         tid = request.args.get('tid') or request.headers.get('X-Tab-Id')
-        active_tabs = session.get('active_tabs', [])
         
-        # If it's an API call, we strictly require a valid TID
-        if request.path.startswith('/api/') or request.path in ['/list_playbooks', '/get_log']:
-            if not tid or tid not in active_tabs:
-                return jsonify({"error": "Tab not authorized"}), 401
+        # Check if any tabs are authenticated
+        tabs = session.get('tabs', {})
+        
+        # For the dashboard page (/), if no TID is provided yet, we let it load
+        # so the JavaScript can redirect with the TID from sessionStorage.
+        if request.path == '/' and not tid:
             return f(*args, **kwargs)
 
-        # For the main dashboard page
-        if request.path == '/':
-            if not tid:
-                # Initial load without TID: allow it so JS can run and provide the TID from sessionStorage
-                return f(*args, **kwargs)
-            if tid not in active_tabs:
-                return redirect(url_for('login', reason='new_tab'))
-                
+        # Validate that the TID exists and is authenticated
+        if not tid or tid not in tabs:
+            if request.path.startswith('/api/') or request.path in ['/list_playbooks', '/get_log']:
+                return jsonify({"error": "Tab not authorized"}), 401
+            return redirect(url_for('login', reason='unauthorized_tab'))
+        
+        # Inject user data for this request
+        g.user = tabs[tid]
         return f(*args, **kwargs)
     return decorated_function
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
-    # If reason=new_tab, we show login even if user_id exists in session
-    force_login = request.args.get('reason') == 'new_tab' or request.args.get('reason') == 'unauthorized_tab'
+    tid = request.args.get('tid') or request.form.get('tid')
     
     if request.method == 'POST':
         identifier = request.form.get('username')
         password = request.form.get('password')
-        tid = request.form.get('tid') # Tab ID from client
         
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute('SELECT * FROM users WHERE username = %s OR email = %s', (identifier, identifier))
-                user = cursor.fetchone()
-        finally:
-            conn.close()
-
-        if user and check_password_hash(user['password_hash'], password):
-            session['user_id'] = user['client_id']
-            session['username'] = user['username']
-            session['role'] = user['role']
-            
-            # Register this tab
-            if tid:
-                if 'active_tabs' not in session:
-                    session['active_tabs'] = []
-                if tid not in session['active_tabs']:
-                    # We use a list to allow multiple authenticated tabs
-                    session['active_tabs'].append(tid)
-                    session.modified = True
-            
-            return redirect(url_for('index', tid=tid))
+        if not tid:
+            error = "Security Error: Missing Tab ID. Please refresh."
         else:
-            error = 'Invalid username or password'
+            conn = get_db_connection()
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute('SELECT * FROM users WHERE username = %s OR email = %s', (identifier, identifier))
+                    user = cursor.fetchone()
+            finally:
+                conn.close()
+
+            if user and check_password_hash(user['password_hash'], password):
+                if 'tabs' not in session:
+                    session['tabs'] = {}
+                
+                # Store identity strictly for THIS tab
+                session['tabs'][tid] = {
+                    'user_id': user['client_id'],
+                    'username': user['username'],
+                    'role': user['role']
+                }
+                session.modified = True
+                return redirect(url_for('index', tid=tid))
+            else:
+                error = 'Invalid username or password'
             
-    if 'user_id' in session and not force_login:
-        return redirect(url_for('index'))
-        
     return render_template('login.html', error=error)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -125,13 +118,17 @@ def register():
 
 @app.route('/logout')
 def logout():
-    session.clear()
+    tid = request.args.get('tid')
+    if tid and 'tabs' in session:
+        if tid in session['tabs']:
+            del session['tabs'][tid]
+            session.modified = True
     return redirect(url_for('login'))
 
 @app.route('/')
 @login_required
 def index():
-    return render_template('index.html', user_role=session.get('role'))
+    return render_template('index.html', user_role=g.user['role'], username=g.user['username'])
 
 @app.route('/api/machines', methods=['GET'])
 @login_required
@@ -139,10 +136,10 @@ def get_machines():
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            if session.get('role') == 'admin':
+            if g.user['role'] == 'admin':
                 cursor.execute('SELECT m.*, u.username as owner_name FROM machines m LEFT JOIN users u ON m.owner_id = u.client_id')
             else:
-                cursor.execute('SELECT * FROM machines WHERE owner_id = %s', (session['user_id'],))
+                cursor.execute('SELECT * FROM machines WHERE owner_id = %s', (g.user['user_id'],))
             machines = cursor.fetchall()
     finally:
         conn.close()
@@ -307,7 +304,7 @@ def admin_get_all_machines():
 @app.route('/api/admin/assign', methods=['POST'])
 @login_required
 def admin_assign_machine():
-    if session.get('role') != 'admin':
+    if g.user['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
     
     data = request.get_json()
@@ -330,7 +327,7 @@ def admin_assign_machine():
 @app.route('/api/admin/user_machines/<int:user_id>', methods=['GET'])
 @login_required
 def admin_get_user_machines(user_id):
-    if session.get('role') != 'admin':
+    if g.user['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
     
     conn = get_db_connection()
@@ -345,7 +342,7 @@ def admin_get_user_machines(user_id):
 @app.route('/api/admin/unlink', methods=['POST'])
 @login_required
 def admin_unlink_machine():
-    if session.get('role') != 'admin':
+    if g.user['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
     
     data = request.get_json()
@@ -393,8 +390,8 @@ def deploy_playbook_proxy():
                 json={
                     "playbook_name": playbook, 
                     "extra_vars": {
-                        "custom_message": f"Deployment by {session['username']} of {playbook}",
-                        "user_id": session['user_id']
+                        "custom_message": f"Deployment by {g.user['username']} of {playbook}",
+                        "user_id": g.user['user_id']
                     }
                 },
                 timeout=10
@@ -410,7 +407,7 @@ def deploy_playbook_proxy():
 @app.route('/api/admin/deployment_requests', methods=['GET'])
 @login_required
 def admin_get_requests():
-    if session.get('role') != 'admin':
+    if g.user['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
     
     conn = get_db_connection()
@@ -431,7 +428,7 @@ def admin_get_requests():
 @app.route('/api/admin/process_request', methods=['POST'])
 @login_required
 def admin_process_request():
-    if session.get('role') != 'admin':
+    if g.user['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
     
     data = request.get_json()
