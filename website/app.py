@@ -39,13 +39,14 @@ def login_required(f):
 def login():
     error = None
     if request.method == 'POST':
-        username = request.form.get('username')
+        identifier = request.form.get('username') # This can now be username or email
         password = request.form.get('password')
         
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+                # Check both username and email
+                cursor.execute('SELECT * FROM users WHERE username = %s OR email = %s', (identifier, identifier))
                 user = cursor.fetchone()
         finally:
             conn.close()
@@ -248,16 +249,21 @@ def admin_get_users():
         conn.close()
     return jsonify(users)
 
-@app.route('/api/admin/unassigned_machines', methods=['GET'])
+@app.route('/api/admin/all_machines', methods=['GET'])
 @login_required
-def admin_get_unassigned():
+def admin_get_all_machines():
     if session.get('role') != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
     
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT * FROM machines WHERE owner_id IS NULL')
+            # Get all machines and their current owner's name if they have one
+            cursor.execute('''
+                SELECT m.*, u.username as owner_name 
+                FROM machines m 
+                LEFT JOIN users u ON m.owner_id = u.client_id
+            ''')
             machines = cursor.fetchall()
     finally:
         conn.close()
