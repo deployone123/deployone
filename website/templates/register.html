@@ -12,6 +12,11 @@
             if (savedTheme === 'light') {
                 document.documentElement.setAttribute('data-theme', 'light');
             }
+            // Generate a unique tab-id if not already present
+            if (!sessionStorage.getItem('active_tab_id')) {
+                const newTid = Math.random().toString(36).substring(2, 15);
+                sessionStorage.setItem('active_tab_id', newTid);
+            }
         })();
     </script>
     <style>

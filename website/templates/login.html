@@ -12,6 +12,11 @@
             if (savedTheme === 'light') {
                 document.documentElement.setAttribute('data-theme', 'light');
             }
+            // Generate a unique tab-id if not already present
+            if (!sessionStorage.getItem('active_tab_id')) {
+                const newTid = Math.random().toString(36).substring(2, 15);
+                sessionStorage.setItem('active_tab_id', newTid);
+            }
         })();
     </script>
     <style>
@@ -160,7 +165,8 @@
         {% if error %}
             <div class="error-box">⚠ {{ error }}</div>
         {% endif %}
-        <form method="POST">
+        <form method="POST" id="loginForm">
+            <input type="hidden" name="tid" id="tidInput">
             <div class="form-group">
                 <label for="username">Username or Email</label>
                 <input type="text" id="username" name="username" placeholder="your_username_or_email" required autofocus>
@@ -174,6 +180,10 @@
         <div class="footer-link">No account? <a href="{{ url_for('register') }}">Register here</a></div>
     </div>
     <script>
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            document.getElementById('tidInput').value = sessionStorage.getItem('active_tab_id');
+        });
+
         function toggleTheme() {
             const html = document.documentElement;
             const currentTheme = html.getAttribute('data-theme') || 'dark';
