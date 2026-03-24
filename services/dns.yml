@@ -46,6 +46,10 @@
         netif:
           net0: "name=eth0,bridge=vmbr4,tag=50,ip=dhcp"
         state: present
+        - name: Assign Security Group to LXC
+      shell: |
+        pvesh create /nodes/{{ node }}/lxc/{{ vmid }}/firewall/groups/clientes
+      delegate_to: "{{ proxmox_host }}"
 
     - name: Wait for container to start
       community.proxmox.proxmox:
