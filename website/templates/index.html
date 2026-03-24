@@ -737,14 +737,15 @@
                     userSelect.appendChild(opt.cloneNode(true));
                     ownerSelect.appendChild(opt);
                 });
-                const machResp = await fetch('/api/admin/unassigned_machines');
+                const machResp = await fetch('/api/admin/all_machines');
                 const machines = await machResp.json();
                 const machineSelect = document.getElementById('assignMachine');
                 machineSelect.innerHTML = '<option value="">-- Select Machine --</option>';
                 machines.forEach(m => {
                     const opt = document.createElement('option');
                     opt.value = m.machine_id;
-                    opt.textContent = `${m.machine_name} (${m.internal_ip}) - ${m.machine_type}`;
+                    const ownerText = m.owner_name ? ` (owned by ${m.owner_name})` : ' (unassigned)';
+                    opt.textContent = `${m.machine_name} [${m.internal_ip}]${ownerText}`;
                     machineSelect.appendChild(opt);
                 });
             } catch (error) { console.error("Error loading management data:", error); }
