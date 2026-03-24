@@ -33,7 +33,7 @@
         node: "{{ node }}"
         api_host: "{{ proxmox_host }}"
         api_user: "{{ proxmox_user }}"
-        api_token_id: "{{ proxmox_token_name }}"
+        api_token_id: "{{ proxvmbr0mox_token_name }}"
         api_token_secret: "{{ proxmox_token_secret }}"
         validate_certs: false
         ostemplate: "{{ template }}"

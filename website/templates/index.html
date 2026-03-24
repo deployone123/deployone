@@ -7,11 +7,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <script>
-        // Immediate execution to prevent theme flicker
+        // Immediate execution to prevent theme flicker and manage Tab ID
         (function() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             if (savedTheme === 'light') {
                 document.documentElement.setAttribute('data-theme', 'light');
+            }
+
+            // Tab Security Check
+            const tid = sessionStorage.getItem('active_tab_id');
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlTid = urlParams.get('tid');
+
+            if (!tid) {
+                // New tab or cleared session storage: must go to login to authorize this tab
+                window.location.href = '/login?reason=new_tab';
+                return;
+            }
+
+            if (!urlTid || urlTid !== tid) {
+                // Ensure the URL always has the correct TID for this tab
+                urlParams.set('tid', tid);
+                window.location.search = urlParams.toString();
             }
         })();
     </script>
@@ -694,6 +711,46 @@
     </div><!-- end main-content -->
 
     <script>
+        // Tab-aware Fetch Wrapper
+        const originalFetch = window.fetch;
+        window.fetch = function(resource, config = {}) {
+            const tid = sessionStorage.getItem('active_tab_id');
+            if (tid) {
+                // For strings
+                if (typeof resource === 'string') {
+                    const url = new URL(resource, window.location.origin);
+                    if (url.origin === window.location.origin) {
+                        url.searchParams.set('tid', tid);
+                        resource = url.toString();
+                    }
+                }
+                // Also add as header for good measure
+                config.headers = config.headers || {};
+                config.headers['X-Tab-Id'] = tid;
+            }
+            return originalFetch(resource, config).then(response => {
+                if (response.status === 401) {
+                    window.location.href = '/login?reason=unauthorized_tab';
+                }
+                return response;
+            });
+        };
+
+        // Ensure navigation links preserve the Tab ID
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            const tid = sessionStorage.getItem('active_tab_id');
+            if (link && link.href && tid) {
+                const url = new URL(link.href);
+                // Only for same-origin links (excluding logout which clears everything)
+                if (url.origin === window.location.origin && !url.pathname.includes('logout')) {
+                    e.preventDefault();
+                    url.searchParams.set('tid', tid);
+                    window.location.href = url.toString();
+                }
+            }
+        });
+
         function toggleTheme() {
             const html = document.documentElement;
             const currentTheme = html.getAttribute('data-theme') || 'dark';

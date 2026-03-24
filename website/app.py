@@ -32,20 +32,42 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
             return redirect(url_for('login'))
+        
+        # Tab Security: Each tab must prove it was authorized
+        tid = request.args.get('tid') or request.headers.get('X-Tab-Id')
+        active_tabs = session.get('active_tabs', [])
+        
+        # If it's an API call, we strictly require a valid TID
+        if request.path.startswith('/api/') or request.path in ['/list_playbooks', '/get_log']:
+            if not tid or tid not in active_tabs:
+                return jsonify({"error": "Tab not authorized"}), 401
+            return f(*args, **kwargs)
+
+        # For the main dashboard page
+        if request.path == '/':
+            if not tid:
+                # Initial load without TID: allow it so JS can run and provide the TID from sessionStorage
+                return f(*args, **kwargs)
+            if tid not in active_tabs:
+                return redirect(url_for('login', reason='new_tab'))
+                
         return f(*args, **kwargs)
     return decorated_function
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
+    # If reason=new_tab, we show login even if user_id exists in session
+    force_login = request.args.get('reason') == 'new_tab' or request.args.get('reason') == 'unauthorized_tab'
+    
     if request.method == 'POST':
-        identifier = request.form.get('username') # This can now be username or email
+        identifier = request.form.get('username')
         password = request.form.get('password')
+        tid = request.form.get('tid') # Tab ID from client
         
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
-                # Check both username and email
                 cursor.execute('SELECT * FROM users WHERE username = %s OR email = %s', (identifier, identifier))
                 user = cursor.fetchone()
         finally:
@@ -55,10 +77,23 @@ def login():
             session['user_id'] = user['client_id']
             session['username'] = user['username']
             session['role'] = user['role']
-            return redirect(url_for('index'))
+            
+            # Register this tab
+            if tid:
+                if 'active_tabs' not in session:
+                    session['active_tabs'] = []
+                if tid not in session['active_tabs']:
+                    # We use a list to allow multiple authenticated tabs
+                    session['active_tabs'].append(tid)
+                    session.modified = True
+            
+            return redirect(url_for('index', tid=tid))
         else:
             error = 'Invalid username or password'
             
+    if 'user_id' in session and not force_login:
+        return redirect(url_for('index'))
+        
     return render_template('login.html', error=error)
 
 @app.route('/register', methods=['GET', 'POST'])
