@@ -1,0 +1,30 @@
+- name: Sync Machine IP from Proxmox
+  hosts: localhost
+  gather_facts: false
+  vars:
+    proxmox_host: "10.1.100.100"
+    proxmox_user: "root@pam"
+    proxmox_token_name: "ansible"
+    node: "deployone"
+
+  tasks:
+    - name: Load secrets file
+      include_vars:
+        file: vars/secrets.yml
+
+    - name: Get LXC Status/Interfaces
+      shell: "pvesh get /nodes/{{ node }}/lxc/{{ vmid }}/interfaces --output-format json"
+      register: lxc_interfaces
+      delegate_to: "{{ proxmox_host }}"
+      ignore_errors: true
+
+    - name: Set IP Fact for LXC
+      set_fact:
+        container_ip: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | first).split('/')[0] }}"
+      when: lxc_interfaces.rc == 0
+
+    - name: Signal Website to Update IP
+      debug:
+        msg: "AUTO_REGISTER: VMID={{ vmid }} IP={{ container_ip }} NAME=sync-update TYPE=lxc"
+      when: container_ip is defined
+      delegate_to: localhost

@@ -387,15 +387,17 @@ def machine_power():
         return jsonify({"error": "Unauthorized"}), 403
 
     # 2. Trigger Ansible API
-    # You can use a single playbook that handles both, or two different ones.
-    # Here we assume playbooks named 'start_machine.yml' and 'reboot_machine.yml'
-    playbook = "start_machine.yml" if action == "start" else "reboot_machine.yml"
+    # Path is relative to what the API expects
+    if action == 'sync':
+        playbook_path = "deployone/services/power/sync_machine.yml"
+    else:
+        playbook_path = f"deployone/services/power/{action}_machine.yml"
     
     try:
         response = requests.post(
             f"{ANSIBLE_API_BASE_URL}/run-playbook/",
             json={
-                "playbook_name": playbook,
+                "playbook_name": playbook_path,
                 "extra_vars": {
                     "vmid": machine['proxmox_vmid'],
                     "action": action,
@@ -407,8 +409,35 @@ def machine_power():
         response.raise_for_status()
         return jsonify(response.json())
     except Exception as e:
-        app.logger.error(f"Error triggering power action: {e}")
+        app.logger.error(f"Error triggering {action} action: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/machines/status/<int:machine_id>', methods=['GET'])
+@login_required
+def get_machine_status(machine_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT internal_ip, owner_id FROM machines WHERE machine_id = %s', (machine_id,))
+            machine = cursor.fetchone()
+    finally:
+        conn.close()
+
+    if not machine:
+        return jsonify({"error": "Machine not found"}), 404
+    
+    if g.user['role'] != 'admin' and machine['owner_id'] != g.user['user_id']:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    ip = machine['internal_ip']
+    # Check if host is up with a single ping
+    # -c 1 (1 count), -W 1 (1 sec timeout)
+    response = os.system(f"ping -c 1 -W 1 {ip} > /dev/null 2>&1")
+    
+    return jsonify({
+        "machine_id": machine_id,
+        "status": "online" if response == 0 else "offline"
+    })
 
 @app.route('/list_playbooks', methods=['GET'])
 @login_required
@@ -416,7 +445,19 @@ def list_playbooks_proxy():
     try:
         response = requests.get(f"{ANSIBLE_API_BASE_URL}/list-playbooks/")
         response.raise_for_status()
-        return jsonify(response.json())
+        data = response.json()
+        
+        # Filter out playbooks in 'power' folder or that look like internal ones
+        if 'playbooks' in data:
+            filtered = []
+            for pb in data['playbooks']:
+                name = pb['display_name'] if isinstance(pb, dict) else pb
+                path = pb['full_path'] if isinstance(pb, dict) else pb
+                if "power/" not in path and "_machine.yml" not in path:
+                    filtered.append(pb)
+            data['playbooks'] = filtered
+            
+        return jsonify(data)
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Error fetching playbooks from Ansible API: {e}")
         return jsonify({"error": f"Could not fetch playbooks: {e}"}), 500

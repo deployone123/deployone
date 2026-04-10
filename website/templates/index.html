@@ -472,6 +472,23 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
 
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .status-online { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
+        .status-offline { background-color: var(--error); }
+        .status-checking { background-color: var(--warning); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
         .machine-card-name {
             font-size: 14px;
             font-weight: 600;
@@ -912,12 +929,16 @@
                 machines.forEach(machine => {
                     const card = document.createElement('div');
                     card.className = 'machine-card';
+                    card.id = `machine-card-${machine.machine_id}`;
                     let ownerInfo = '';
                     if (userRole === 'admin' && machine.owner_name) {
                         ownerInfo = `<div class="machine-meta">Owner: <strong>${machine.owner_name}</strong></div>`;
                     }
                     card.innerHTML = `
-                        <div class="machine-card-name">${machine.machine_name}</div>
+                        <div class="machine-card-name">
+                            <span id="status-dot-${machine.machine_id}" class="status-dot status-checking"></span>
+                            ${machine.machine_name}
+                        </div>
                         <div class="machine-meta">IP: <strong>${machine.internal_ip}</strong></div>
                         <div class="machine-meta">Type: <strong>${machine.machine_type}</strong></div>
                         <div class="machine-meta">VMID: <strong>${machine.proxmox_vmid}</strong></div>
@@ -929,8 +950,39 @@
                         <button onclick="connectToMachine('${machine.machine_name}', '${machine.internal_ip}')" class="btn-blue" style="margin-top: 8px; width: 100%; font-size: 11px;">🖥 Open Terminal</button>
                     `;
                     machinesList.appendChild(card);
+                    // Check status for this machine
+                    updateMachineStatus(machine.machine_id);
                 });
             } catch (error) { console.error("Error fetching machines:", error); machinesList.innerHTML = `<p class="error">Error loading machines: ${error.message}</p>`; }
+        }
+
+        async function updateMachineStatus(machineId) {
+            const dot = document.getElementById(`status-dot-${machineId}`);
+            if (!dot) return;
+            try {
+                const response = await fetch(`/api/machines/status/${machineId}`);
+                const data = await response.json();
+                dot.className = 'status-dot ' + (data.status === 'online' ? 'status-online' : 'status-offline');
+                
+                // Add or remove Sync button if offline
+                let syncBtn = document.getElementById(`sync-btn-${machineId}`);
+                if (data.status === 'offline' && !syncBtn) {
+                    const card = document.getElementById(`machine-card-${machineId}`);
+                    const nameHeader = card.querySelector('.machine-card-name');
+                    syncBtn = document.createElement('button');
+                    syncBtn.id = `sync-btn-${machineId}`;
+                    syncBtn.className = 'btn-sm btn-blue';
+                    syncBtn.style.cssText = 'float: right; padding: 2px 6px; font-size: 9px; margin-top: 0;';
+                    syncBtn.innerHTML = '🔄 Sync IP';
+                    syncBtn.onclick = () => machinePower(machineId, 'sync');
+                    nameHeader.appendChild(syncBtn);
+                } else if (data.status === 'online' && syncBtn) {
+                    syncBtn.remove();
+                }
+            } catch (error) {
+                console.error(`Error checking status for ${machineId}:`, error);
+                dot.className = 'status-dot status-offline';
+            }
         }
 
         async function machinePower(machineId, action) {
@@ -948,7 +1000,13 @@
                     switchView('ansible', document.querySelector('.menu-item'));
                     createLogTab(`Power ${action}`, result.task_id);
                     switchTab(result.task_id);
-                    pollLogs(result.task_id, `Power ${action}`);
+                    pollLogs(result.task_id, `Power ${action}`).then(() => {
+                        // Refresh status once playbook finishes
+                        updateMachineStatus(machineId);
+                    });
+                    // Also refresh immediately to show "checking"
+                    const dot = document.getElementById(`status-dot-${machineId}`);
+                    if (dot) dot.className = 'status-dot status-checking';
                 } else {
                     alert(`Error: ${result.error}`);
                 }
