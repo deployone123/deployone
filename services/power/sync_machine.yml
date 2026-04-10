@@ -10,7 +10,7 @@
   tasks:
     - name: Load secrets file
       include_vars:
-        file: vars/secrets.yml
+        file: ../vars/secrets.yml
 
     - name: Get LXC Status/Interfaces
       shell: "pvesh get /nodes/{{ node }}/lxc/{{ vmid }}/interfaces --output-format json"
