@@ -922,11 +922,40 @@
                         <div class="machine-meta">Type: <strong>${machine.machine_type}</strong></div>
                         <div class="machine-meta">VMID: <strong>${machine.proxmox_vmid}</strong></div>
                         ${ownerInfo}
-                        <button onclick="connectToMachine('${machine.machine_name}', '${machine.internal_ip}')" class="btn-blue" style="margin-top: 14px; width: 100%; font-size: 11px;">🖥 Open Terminal</button>
+                        <div style="display: flex; gap: 6px; margin-top: 14px;">
+                            <button onclick="machinePower(${machine.machine_id}, 'start')" class="btn-green btn-sm" style="flex: 1;">▶ Start</button>
+                            <button onclick="machinePower(${machine.machine_id}, 'reboot')" class="btn-blue btn-sm" style="flex: 1;">🔄 Reboot</button>
+                        </div>
+                        <button onclick="connectToMachine('${machine.machine_name}', '${machine.internal_ip}')" class="btn-blue" style="margin-top: 8px; width: 100%; font-size: 11px;">🖥 Open Terminal</button>
                     `;
                     machinesList.appendChild(card);
                 });
             } catch (error) { console.error("Error fetching machines:", error); machinesList.innerHTML = `<p class="error">Error loading machines: ${error.message}</p>`; }
+        }
+
+        async function machinePower(machineId, action) {
+            if (!confirm(`Are you sure you want to ${action} this machine?`)) return;
+            try {
+                const response = await fetch('/api/machines/power', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ machine_id: machineId, action: action })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(`Action ${action} initiated successfully! Task ID: ${result.task_id}`);
+                    // Optional: Switch to Ansible view to show logs
+                    switchView('ansible', document.querySelector('.menu-item'));
+                    createLogTab(`Power ${action}`, result.task_id);
+                    switchTab(result.task_id);
+                    pollLogs(result.task_id, `Power ${action}`);
+                } else {
+                    alert(`Error: ${result.error}`);
+                }
+            } catch (error) {
+                console.error("Error triggering machine power action:", error);
+                alert("Failed to initiate power action.");
+            }
         }
 
         function connectToMachine(name, ip) {

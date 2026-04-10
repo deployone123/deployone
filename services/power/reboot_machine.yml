@@ -1,0 +1,37 @@
+- name: Reboot Proxmox Machine
+  hosts: localhost
+  gather_facts: false
+  vars:
+    proxmox_host: "10.1.100.100"
+    proxmox_user: "root@pam"
+    proxmox_token_name: "ansible"
+    node: "deployone"
+
+  tasks:
+    - name: Load secrets file
+      include_vars:
+        file: vars/secrets.yml
+
+    - name: Reboot machine (LXC)
+      community.proxmox.proxmox:
+        vmid: "{{ vmid }}"
+        node: "{{ node }}"
+        api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_token_id: "{{ proxmox_token_name }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        validate_certs: false
+        state: restarted
+      ignore_errors: true
+
+    - name: Reboot machine (VM/QEMU)
+      community.proxmox.proxmox_kvm:
+        vmid: "{{ vmid }}"
+        node: "{{ node }}"
+        api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_token_id: "{{ proxmox_token_name }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        validate_certs: false
+        state: rebooted
+      ignore_errors: true

@@ -361,6 +361,55 @@ def admin_unlink_machine():
     
     return jsonify({"status": "success", "message": "Machine unlinked successfully"})
 
+@app.route('/api/machines/power', methods=['POST'])
+@login_required
+def machine_power():
+    data = request.get_json()
+    machine_id = data.get('machine_id')
+    action = data.get('action') # 'start' or 'reboot'
+
+    if not machine_id or not action:
+        return jsonify({"error": "Missing machine_id or action"}), 400
+
+    # 1. Verify ownership
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT proxmox_vmid, owner_id FROM machines WHERE machine_id = %s', (machine_id,))
+            machine = cursor.fetchone()
+    finally:
+        conn.close()
+
+    if not machine:
+        return jsonify({"error": "Machine not found"}), 404
+    
+    if g.user['role'] != 'admin' and machine['owner_id'] != g.user['user_id']:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    # 2. Trigger Ansible API
+    # You can use a single playbook that handles both, or two different ones.
+    # Here we assume playbooks named 'start_machine.yml' and 'reboot_machine.yml'
+    playbook = "start_machine.yml" if action == "start" else "reboot_machine.yml"
+    
+    try:
+        response = requests.post(
+            f"{ANSIBLE_API_BASE_URL}/run-playbook/",
+            json={
+                "playbook_name": playbook,
+                "extra_vars": {
+                    "vmid": machine['proxmox_vmid'],
+                    "action": action,
+                    "requested_by": g.user['username']
+                }
+            },
+            timeout=10
+        )
+        response.raise_for_status()
+        return jsonify(response.json())
+    except Exception as e:
+        app.logger.error(f"Error triggering power action: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/list_playbooks', methods=['GET'])
 @login_required
 def list_playbooks_proxy():
