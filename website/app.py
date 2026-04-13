@@ -128,7 +128,11 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    return render_template('index.html', user_role=g.user['role'], username=g.user['username'])
+    # If g.user is not set (initial load without tid), use defaults
+    # The frontend JS will handle the redirect to include the tid
+    user_role = getattr(g, 'user', {}).get('role', 'user')
+    username = getattr(g, 'user', {}).get('username', 'Guest')
+    return render_template('index.html', user_role=user_role, username=username)
 
 @app.route('/api/machines', methods=['GET'])
 @login_required

@@ -594,7 +594,7 @@
         </nav>
 
         <div class="sidebar-footer">
-            <div class="sidebar-username">{{ session['username'] }}</div>
+            <div class="sidebar-username">{{ username }}</div>
             <div class="sidebar-role">Role: <span>{{ user_role }}</span></div>
             <a href="{{ url_for('logout') }}" class="logout-link">↪ Logout</a>
         </div>
