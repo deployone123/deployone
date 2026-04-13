@@ -153,7 +153,7 @@ def get_machines():
 @app.route('/api/machines/add', methods=['POST'])
 @login_required
 def add_machine():
-    if session.get('role') != 'admin':
+    if g.user['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
         
     data = request.get_json()
@@ -235,7 +235,7 @@ def auto_register_machine():
     machine_name = data.get('machine_name')
     machine_type = data.get('machine_type', 'lxc')
     internal_ip = data.get('internal_ip')
-    user_id = session['user_id'] # Link to current user
+    user_id = g.user['user_id'] # Link to current user
 
     if not all([proxmox_vmid, internal_ip]):
         return jsonify({"error": "Missing critical machine data"}), 400
@@ -273,7 +273,7 @@ def auto_register_machine():
 @app.route('/api/admin/users', methods=['GET'])
 @login_required
 def admin_get_users():
-    if session.get('role') != 'admin':
+    if g.user['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
     
     conn = get_db_connection()
@@ -288,7 +288,7 @@ def admin_get_users():
 @app.route('/api/admin/all_machines', methods=['GET'])
 @login_required
 def admin_get_all_machines():
-    if session.get('role') != 'admin':
+    if g.user['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
     
     conn = get_db_connection()
