@@ -48,7 +48,7 @@
         features:
           - nesting=1
         netif:
-          net0: "name=eth0,bridge=vmbr0,ip=dhcp"
+          net0: "name=eth0,bridge=vmbr4,ip=dhcp"
         state: present
 
     - name: Wait for container to start
