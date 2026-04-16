@@ -104,9 +104,9 @@ def register():
             try:
                 hashed_password = generate_password_hash(password)
                 with conn.cursor() as cursor:
-                    # Explicitly setting role to 'user'
+                    # Explicitly setting role to 'free' as default
                     cursor.execute('INSERT INTO users (username, password_hash, email, role) VALUES (%s, %s, %s, %s)',
-                                (username, hashed_password, email, 'user'))
+                                (username, hashed_password, email, 'free'))
                 conn.commit()
                 return redirect(url_for('login'))
             except pymysql.err.IntegrityError:
@@ -453,13 +453,64 @@ def list_playbooks_proxy():
         
         # Filter out playbooks in 'power' folder or that look like internal ones
         if 'playbooks' in data:
-            filtered = []
+            all_playbooks = []
             for pb in data['playbooks']:
                 name = pb['display_name'] if isinstance(pb, dict) else pb
                 path = pb['full_path'] if isinstance(pb, dict) else pb
                 if "power/" not in path and "_machine.yml" not in path:
-                    filtered.append(pb)
-            data['playbooks'] = filtered
+                    all_playbooks.append(pb)
+            
+            # Now filter based on user role and purchases
+            conn = get_db_connection()
+            try:
+                with conn.cursor() as cursor:
+                    if g.user['role'] == 'admin':
+                        data['playbooks'] = all_playbooks
+                    elif g.user['role'] == 'free':
+                        # Free users can only see debian and dns (placeholders for free trial)
+                        free_playbooks = []
+                        for pb in all_playbooks:
+                            path = pb['full_path'] if isinstance(pb, dict) else pb
+                            if 'debian' in path.lower() or 'dns' in path.lower():
+                                # Check if already used
+                                cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
+                                pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
+                                pb_info['trial_used'] = cursor.fetchone() is not None
+                                pb_info['is_free'] = True
+                                pb_info['price'] = 5.00 # Placeholder
+                                free_playbooks.append(pb_info)
+                        data['playbooks'] = free_playbooks
+                    else: # 'pro' or any paid role
+                        cursor.execute("SELECT playbook_path FROM purchased_playbooks WHERE user_id = %s", (g.user['user_id'],))
+                        purchased = [p['playbook_path'] for p in cursor.fetchall()]
+                        
+                        filtered = []
+                        for pb in all_playbooks:
+                            path = pb['full_path'] if isinstance(pb, dict) else pb
+                            if path in purchased:
+                                pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
+                                pb_info['owned'] = True
+                                filtered.append(pb_info)
+                            elif 'debian' in path.lower() or 'dns' in path.lower():
+                                # Still show free trials if they haven't used them
+                                cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
+                                pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
+                                pb_info['trial_used'] = cursor.fetchone() is not None
+                                pb_info['is_free'] = True
+                                filtered.append(pb_info)
+                        data['playbooks'] = filtered
+
+                    # For UI to show catalog (Optional: separate endpoint or include all with prices)
+                    catalog = []
+                    for pb in all_playbooks:
+                        path = pb['full_path'] if isinstance(pb, dict) else pb
+                        pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
+                        pb_info['price'] = 10.00 if 'debian' not in path.lower() and 'dns' not in path.lower() else 5.00
+                        catalog.append(pb_info)
+                    data['catalog'] = catalog
+
+            finally:
+                conn.close()
             
         return jsonify(data)
     except requests.exceptions.RequestException as e:
@@ -474,6 +525,40 @@ def deploy_playbook_proxy():
 
     if not playbook_names or not isinstance(playbook_names, list):
         return jsonify({"error": "playbook_names list is required"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Check permissions for each playbook
+            for playbook in playbook_names:
+                if g.user['role'] == 'admin':
+                    continue
+                
+                # Check if it's a free playbook trial
+                is_free = 'debian' in playbook.lower() or 'dns' in playbook.lower()
+                
+                if is_free:
+                    cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], playbook))
+                    if cursor.fetchone():
+                        # If trial used, check if purchased
+                        cursor.execute("SELECT id FROM purchased_playbooks WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], playbook))
+                        if not cursor.fetchone():
+                            return jsonify({"error": f"Trial for {playbook} already used. Please purchase to deploy again."}), 403
+                    else:
+                        # Record trial usage
+                        cursor.execute("INSERT INTO free_trial_usage (user_id, playbook_path) VALUES (%s, %s)", (g.user['user_id'], playbook))
+                else:
+                    # Not a free playbook, must be purchased
+                    cursor.execute("SELECT id FROM purchased_playbooks WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], playbook))
+                    if not cursor.fetchone():
+                        return jsonify({"error": f"You haven't purchased {playbook}."}), 403
+            
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 
     # All users can now deploy directly
     task_ids = []
@@ -497,6 +582,38 @@ def deploy_playbook_proxy():
             task_ids.append({"playbook": playbook, "error": str(e)})
     
     return jsonify({"status": "Started", "deployments": task_ids})
+
+@app.route('/api/buy_playbook', methods=['POST'])
+@login_required
+def buy_playbook():
+    data = request.get_json()
+    playbook_path = data.get('playbook_path')
+    
+    if not playbook_path:
+        return jsonify({"error": "playbook_path is required"}), 400
+        
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Add to purchased
+            try:
+                cursor.execute("INSERT INTO purchased_playbooks (user_id, playbook_path) VALUES (%s, %s)", (g.user['user_id'], playbook_path))
+                
+                # Change role to 'pro' if it was 'free'
+                if g.user['role'] == 'free':
+                    cursor.execute("UPDATE users SET role = 'pro' WHERE client_id = %s", (g.user['user_id'],))
+                    # Update session for immediate effect
+                    tid = request.args.get('tid') or request.headers.get('X-Tab-Id')
+                    if tid and 'tabs' in session and tid in session['tabs']:
+                        session['tabs'][tid]['role'] = 'pro'
+                        session.modified = True
+                
+                conn.commit()
+                return jsonify({"status": "success", "message": f"Successfully purchased {playbook_path}. Your role is now PRO!"})
+            except pymysql.err.IntegrityError:
+                return jsonify({"error": "You already own this playbook."}), 400
+    finally:
+        conn.close()
 
 @app.route('/api/admin/deployment_requests', methods=['GET'])
 @login_required
