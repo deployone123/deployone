@@ -9,7 +9,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
-# Secret Key
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-goes-here')
 
@@ -27,6 +26,41 @@ def get_db_connection():
         database=os.environ.get('DB_NAME', 'deployone'),
         cursorclass=pymysql.cursors.DictCursor
     )
+
+def ensure_required_tables():
+    """Ensures that the new tables for payments and trials exist."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Create purchased_playbooks table
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS purchased_playbooks (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                user_id BIGINT NOT NULL,
+                playbook_path VARCHAR(255) NOT NULL,
+                purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY user_playbook (user_id, playbook_path)
+            ) ENGINE=InnoDB
+            ''')
+
+            # Create free_trial_usage table
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS free_trial_usage (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                user_id BIGINT NOT NULL,
+                playbook_path VARCHAR(255) NOT NULL,
+                used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY user_playbook_trial (user_id, playbook_path)
+            ) ENGINE=InnoDB
+            ''')
+        conn.commit()
+    except Exception as e:
+        print(f"Error ensuring tables: {e}")
+    finally:
+        conn.close()
+
+# Run table check on startup
+ensure_required_tables()
 
 def login_required(f):
     @functools.wraps(f)
@@ -514,11 +548,10 @@ def list_playbooks_proxy():
                     conn.close()
             except Exception as db_err:
                 app.logger.error(f"Database error in list_playbooks: {db_err}")
-                # Fallback: if database fails (e.g. missing tables), show all playbooks but maybe log the error
-                # This prevents a total 500 for the user.
-                data['playbooks'] = all_playbooks
-                data['catalog'] = all_playbooks
-                data['db_error'] = str(db_err)
+                # Fallback: if database fails, only show NOTHING for my playbooks to be safe
+                data['playbooks'] = []
+                data['catalog'] = []
+                data['error'] = "Database error. Please contact admin."
             
         return jsonify(data)
     except requests.exceptions.RequestException as e:
@@ -607,8 +640,8 @@ def buy_playbook():
             try:
                 cursor.execute("INSERT INTO purchased_playbooks (user_id, playbook_path) VALUES (%s, %s)", (g.user['user_id'], playbook_path))
                 
-                # Change role to 'pro' if it was 'free'
-                if g.user['role'] == 'free':
+                # Change role to 'pro' if it was 'free' or 'user'
+                if g.user['role'] in ['free', 'user']:
                     cursor.execute("UPDATE users SET role = 'pro' WHERE client_id = %s", (g.user['user_id'],))
                     # Update session for immediate effect
                     tid = request.args.get('tid') or request.headers.get('X-Tab-Id')
@@ -620,6 +653,8 @@ def buy_playbook():
                 return jsonify({"status": "success", "message": f"Successfully purchased {playbook_path}. Your role is now PRO!"})
             except pymysql.err.IntegrityError:
                 return jsonify({"error": "You already own this playbook."}), 400
+            except Exception as e:
+                return jsonify({"error": f"Database error during purchase: {str(e)}"}), 500
     finally:
         conn.close()
 
