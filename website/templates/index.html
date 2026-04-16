@@ -849,7 +849,10 @@
                         <td>${m.machine_name}</td>
                         <td>${m.internal_ip}</td>
                         <td>${m.machine_type}</td>
-                        <td><button onclick="performUnlink(${m.machine_id})" class="btn-danger btn-sm" style="width: auto; margin: 0; padding: 4px 10px;">Unlink</button></td>
+                        <td style="display: flex; gap: 4px;">
+                            <button onclick="performUnlink(${m.machine_id})" class="btn-danger btn-sm" style="width: auto; margin: 0; padding: 4px 10px;">Unlink</button>
+                            <button onclick="performDelete(${m.machine_id})" class="btn-danger btn-sm" style="width: auto; margin: 0; padding: 4px 10px; background-color: #ff4d4d;">Delete</button>
+                        </td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
@@ -863,6 +866,27 @@
                 const response = await fetch('/api/admin/unlink', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ machine_id: machineId }) });
                 if (response.ok) { fetchUserMachines(); fetchManageData(); } else { alert("Failed to unlink machine."); }
             } catch (error) { console.error("Error unlinking machine:", error); alert("An error occurred."); }
+        }
+
+        async function performDelete(machineId) {
+            if (!confirm("Are you sure you want to DELETE this machine from the database? This cannot be undone and will not affect Proxmox.")) return;
+            try {
+                const response = await fetch('/api/admin/delete_machine', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ machine_id: machineId }) 
+                });
+                if (response.ok) { 
+                    const result = await response.json();
+                    alert(result.message);
+                    fetchManageData(); 
+                    fetchUserMachines(); 
+                    fetchMachines(); 
+                } else { 
+                    const result = await response.json();
+                    alert("Failed to delete machine: " + (result.error || "Unknown error")); 
+                }
+            } catch (error) { console.error("Error deleting machine:", error); alert("An error occurred."); }
         }
 
         async function fetchDeploymentRequests() {
@@ -957,6 +981,7 @@
                             <button onclick="machinePower(${machine.machine_id}, 'reboot')" class="btn-blue btn-sm" style="flex: 1;">🔄 Reboot</button>
                         </div>
                         <button onclick="connectToMachine('${machine.machine_name}', '${machine.internal_ip}')" class="btn-blue" style="margin-top: 8px; width: 100%; font-size: 11px;">🖥 Open Terminal</button>
+                        ${userRole === 'admin' ? `<button onclick="performDelete(${machine.machine_id})" class="btn-danger" style="margin-top: 8px; width: 100%; font-size: 10px; background-color: #ff4d4d; border: none; padding: 4px;">🗑 Delete from DB</button>` : ''}
                     `;
                     machinesList.appendChild(card);
                     // Check status for this machine

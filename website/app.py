@@ -400,6 +400,28 @@ def admin_unlink_machine():
     
     return jsonify({"status": "success", "message": "Machine unlinked successfully"})
 
+@app.route('/api/admin/delete_machine', methods=['POST'])
+@login_required
+def admin_delete_machine():
+    if g.user['role'] != 'admin':
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    data = request.get_json()
+    machine_id = data.get('machine_id')
+    
+    if not machine_id:
+        return jsonify({"error": "Missing machine_id"}), 400
+        
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('DELETE FROM machines WHERE machine_id = %s', (machine_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    
+    return jsonify({"status": "success", "message": "Machine deleted from database successfully"})
+
 @app.route('/api/machines/power', methods=['POST'])
 @login_required
 def machine_power():
