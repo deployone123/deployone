@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
+# Secret Key
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-goes-here')
 
