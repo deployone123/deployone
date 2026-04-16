@@ -25,6 +25,6 @@
 
     - name: Signal Website to Update IP
       debug:
-        msg: "AUTO_REGISTER: VMID={{ vmid }} IP={{ container_ip }} NAME=sync-update TYPE=lxc"
+        msg: "AUTO_REGISTER: VMID={{ vmid }} IP={{ container_ip }}"
       when: container_ip is defined
       delegate_to: localhost

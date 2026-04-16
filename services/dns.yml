@@ -129,13 +129,19 @@
         src: ./dns.conf
         dest: /etc/dnsmasq.d/dns.conf
     
+    - name: Install dependencies for ttyd
+      package:
+        name:
+          - libuv1
+        state: present
+
     - name: Download ttyd binary
       get_url:
         url: https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
         dest: /usr/local/bin/ttyd
         mode: '0755'
-    
-    - name: Execute ttyd
+
+    - name: Copy ttyd service file
       template:
         src: ./ttyd.service
         dest: /etc/systemd/system/ttyd.service

@@ -268,7 +268,7 @@ def auto_register_machine():
     data = request.get_json()
     proxmox_vmid = data.get('proxmox_vmid')
     machine_name = data.get('machine_name')
-    machine_type = data.get('machine_type', 'lxc')
+    machine_type = data.get('machine_type')
     internal_ip = data.get('internal_ip')
     user_id = g.user['user_id'] # Link to current user
 
@@ -287,15 +287,25 @@ def auto_register_machine():
                 if existing['owner_id'] is not None and existing['owner_id'] != user_id:
                     app.logger.warning(f"Machine {proxmox_vmid} already owned by user {existing['owner_id']}. Overwriting.")
                 
-                cursor.execute('''
-                    UPDATE machines SET internal_ip = %s, owner_id = %s, machine_name = %s, machine_type = %s
-                    WHERE proxmox_vmid = %s
-                ''', (internal_ip, user_id, machine_name, machine_type, proxmox_vmid))
+                # Dynamic update: only update name/type if provided
+                update_fields = ["internal_ip = %s", "owner_id = %s"]
+                update_params = [internal_ip, user_id]
+                
+                if machine_name:
+                    update_fields.append("machine_name = %s")
+                    update_params.append(machine_name)
+                if machine_type:
+                    update_fields.append("machine_type = %s")
+                    update_params.append(machine_type)
+                
+                update_params.append(proxmox_vmid)
+                sql = f"UPDATE machines SET {', '.join(update_fields)} WHERE proxmox_vmid = %s"
+                cursor.execute(sql, tuple(update_params))
             else:
                 cursor.execute('''
                     INSERT INTO machines (proxmox_vmid, machine_name, machine_type, internal_ip, owner_id)
                     VALUES (%s, %s, %s, %s, %s)
-                ''', (proxmox_vmid, machine_name, machine_type, internal_ip, user_id))
+                ''', (proxmox_vmid, machine_name or f"VM-{proxmox_vmid}", machine_type or 'lxc', internal_ip, user_id))
         conn.commit()
     except Exception as e:
         app.logger.error(f"Error in auto_register: {e}")
