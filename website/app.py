@@ -462,56 +462,63 @@ def list_playbooks_proxy():
                     all_playbooks.append(pb)
             
             # Now filter based on user role and purchases
-            conn = get_db_connection()
             try:
-                with conn.cursor() as cursor:
-                    if g.user['role'] == 'admin':
-                        data['playbooks'] = all_playbooks
-                    elif g.user['role'] == 'free':
-                        # Free users can only see debian and dns (placeholders for free trial)
-                        free_playbooks = []
+                conn = get_db_connection()
+                try:
+                    with conn.cursor() as cursor:
+                        if g.user['role'] == 'admin':
+                            data['playbooks'] = all_playbooks
+                        elif g.user['role'] in ['free', 'user']:
+                            # Free users (and legacy 'user' role) can only see debian and dns (placeholders for free trial)
+                            free_playbooks = []
+                            for pb in all_playbooks:
+                                path = pb['full_path'] if isinstance(pb, dict) else pb
+                                if 'debian' in path.lower() or 'dns' in path.lower():
+                                    # Check if already used
+                                    cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
+                                    pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
+                                    pb_info['trial_used'] = cursor.fetchone() is not None
+                                    pb_info['is_free'] = True
+                                    pb_info['price'] = 5.00 # Placeholder
+                                    free_playbooks.append(pb_info)
+                            data['playbooks'] = free_playbooks
+                        else: # 'pro' or any paid role
+                            cursor.execute("SELECT playbook_path FROM purchased_playbooks WHERE user_id = %s", (g.user['user_id'],))
+                            purchased = [p['playbook_path'] for p in cursor.fetchall()]
+                            
+                            filtered = []
+                            for pb in all_playbooks:
+                                path = pb['full_path'] if isinstance(pb, dict) else pb
+                                if path in purchased:
+                                    pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
+                                    pb_info['owned'] = True
+                                    filtered.append(pb_info)
+                                elif 'debian' in path.lower() or 'dns' in path.lower():
+                                    # Still show free trials if they haven't used them
+                                    cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
+                                    pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
+                                    pb_info['trial_used'] = cursor.fetchone() is not None
+                                    pb_info['is_free'] = True
+                                    filtered.append(pb_info)
+                            data['playbooks'] = filtered
+
+                        # For UI to show catalog (Optional: separate endpoint or include all with prices)
+                        catalog = []
                         for pb in all_playbooks:
                             path = pb['full_path'] if isinstance(pb, dict) else pb
-                            if 'debian' in path.lower() or 'dns' in path.lower():
-                                # Check if already used
-                                cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
-                                pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
-                                pb_info['trial_used'] = cursor.fetchone() is not None
-                                pb_info['is_free'] = True
-                                pb_info['price'] = 5.00 # Placeholder
-                                free_playbooks.append(pb_info)
-                        data['playbooks'] = free_playbooks
-                    else: # 'pro' or any paid role
-                        cursor.execute("SELECT playbook_path FROM purchased_playbooks WHERE user_id = %s", (g.user['user_id'],))
-                        purchased = [p['playbook_path'] for p in cursor.fetchall()]
-                        
-                        filtered = []
-                        for pb in all_playbooks:
-                            path = pb['full_path'] if isinstance(pb, dict) else pb
-                            if path in purchased:
-                                pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
-                                pb_info['owned'] = True
-                                filtered.append(pb_info)
-                            elif 'debian' in path.lower() or 'dns' in path.lower():
-                                # Still show free trials if they haven't used them
-                                cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
-                                pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
-                                pb_info['trial_used'] = cursor.fetchone() is not None
-                                pb_info['is_free'] = True
-                                filtered.append(pb_info)
-                        data['playbooks'] = filtered
-
-                    # For UI to show catalog (Optional: separate endpoint or include all with prices)
-                    catalog = []
-                    for pb in all_playbooks:
-                        path = pb['full_path'] if isinstance(pb, dict) else pb
-                        pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
-                        pb_info['price'] = 10.00 if 'debian' not in path.lower() and 'dns' not in path.lower() else 5.00
-                        catalog.append(pb_info)
-                    data['catalog'] = catalog
-
-            finally:
-                conn.close()
+                            pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
+                            pb_info['price'] = 10.00 if 'debian' not in path.lower() and 'dns' not in path.lower() else 5.00
+                            catalog.append(pb_info)
+                        data['catalog'] = catalog
+                finally:
+                    conn.close()
+            except Exception as db_err:
+                app.logger.error(f"Database error in list_playbooks: {db_err}")
+                # Fallback: if database fails (e.g. missing tables), show all playbooks but maybe log the error
+                # This prevents a total 500 for the user.
+                data['playbooks'] = all_playbooks
+                data['catalog'] = all_playbooks
+                data['db_error'] = str(db_err)
             
         return jsonify(data)
     except requests.exceptions.RequestException as e:
