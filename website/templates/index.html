@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeployOne — Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         // Immediate execution to prevent theme flicker and manage Tab ID
         (function() {
@@ -34,33 +34,35 @@
     </script>
     <style>
         :root {
-            --bg: #0a0c10;
-            --surface: #111318;
-            --surface2: #161b26;
-            --border: #1e2330;
-            --border2: #252c3d;
-            --accent: #00d4aa;
-            --accent2: #5b8dee;
-            --accent-dim: rgba(0,212,170,0.1);
-            --text: #e2e8f0;
-            --text-muted: #64748b;
+            --bg: #03050a;
+            --surface: rgba(255, 255, 255, 0.04);
+            --surface2: rgba(255, 255, 255, 0.08);
+            --border: rgba(255, 255, 255, 0.08);
+            --border2: rgba(255, 255, 255, 0.12);
+            --accent: #5674ff;
+            --accent2: #a855f7;
+            --accent-dim: rgba(86, 116, 255, 0.1);
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
             --text-dim: #94a3b8;
             --success: #22c55e;
             --error: #ef4444;
             --warning: #f59e0b;
             --info: #3b82f6;
+            --sans: 'Outfit', sans-serif;
+            --mono: 'JetBrains Mono', monospace;
         }
 
         [data-theme="light"] {
             --bg: #f8fafc;
-            --surface: #ffffff;
-            --surface2: #f1f5f9;
-            --border: #e2e8f0;
-            --border2: #cbd5e1;
+            --surface: rgba(255, 255, 255, 0.8);
+            --surface2: rgba(255, 255, 255, 1);
+            --border: rgba(0, 0, 0, 0.08);
+            --border2: rgba(0, 0, 0, 0.12);
             --text: #0f172a;
             --text-muted: #64748b;
             --text-dim: #475569;
-            --accent-dim: rgba(0,212,170,0.15);
+            --accent-dim: rgba(86, 116, 255, 0.15);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -103,10 +105,10 @@
         }
 
         .sidebar-logo-text {
-            font-family: 'Syne', sans-serif;
-            font-size: 17px;
+            font-family: var(--sans);
+            font-size: 1.2rem;
             font-weight: 800;
-            letter-spacing: -0.3px;
+            letter-spacing: -0.04em;
         }
 
         .sidebar-logo-text span { color: var(--accent); }
@@ -207,23 +209,38 @@
 
         .theme-toggle {
             cursor: pointer;
-            border-radius: 8px;
+            border-radius: 10px;
             border: 1px solid var(--border);
             background: var(--surface2);
             color: var(--text);
-            padding: 5px 10px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 38px; height: 38px;
+            display: flex; align-items: center; justify-content: center;
             transition: all 0.2s;
-            width: auto !important;
-            margin-top: 0 !important;
         }
 
         .theme-toggle:hover {
             border-color: var(--accent);
             background: var(--accent-dim);
+        }
+        
+        .sun-icon { display: none; }
+        [data-theme="light"] .sun-icon { display: block; }
+        [data-theme="light"] .moon-icon { display: none; }
+
+        .lang-switcher {
+            display: flex; gap: 4px;
+            background: var(--surface2);
+            padding: 4px; border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        .lang-btn {
+            background: none; border: none;
+            color: var(--text-dim); font-size: 11px; font-weight: 700;
+            padding: 4px 8px; border-radius: 6px; cursor: pointer;
+            transition: all 0.2s; font-family: var(--mono);
+        }
+        .lang-btn.active {
+            background: var(--accent); color: white;
         }
 
         [data-theme="light"] pre {
@@ -575,20 +592,20 @@
         </div>
 
         <nav class="sidebar-nav">
-            <div class="nav-label">Navigation</div>
+            <div class="nav-label" data-i18n="nav_label">Navigation</div>
             <div class="menu-item active" onclick="switchView('ansible', this)">
                 <span class="icon">🚀</span>
-                <span>Playbooks</span>
+                <span data-i18n="menu_playbooks">Playbooks</span>
             </div>
             <div class="menu-item" onclick="switchView('connections', this)">
                 <span class="icon">🖥</span>
-                <span>My Machines</span>
+                <span data-i18n="menu_machines">My Machines</span>
             </div>
             {% if user_role == 'admin' %}
-            <div class="nav-label" style="margin-top: 12px;">Admin</div>
+            <div class="nav-label" style="margin-top: 12px;" data-i18n="nav_admin">Admin</div>
             <div class="menu-item" onclick="switchView('manage', this)">
                 <span class="icon">⚙</span>
-                <span>Management</span>
+                <span data-i18n="menu_management">Management</span>
             </div>
             {% endif %}
         </nav>
@@ -602,10 +619,16 @@
 
     <div class="main-content">
         <div class="top-bar">
-            <h2 id="view-title">Ansible Playbook Deployer</h2>
+            <h2 id="view-title" data-i18n="top_bar_title">Ansible Playbook Deployer</h2>
             <div class="top-bar-controls">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-switch-lang="ca">CA</button>
+                    <button class="lang-btn" data-switch-lang="es">ES</button>
+                    <button class="lang-btn" data-switch-lang="en">EN</button>
+                </div>
                 <button onclick="toggleTheme()" class="theme-toggle" title="Toggle Light/Dark Mode">
-                    <span id="theme-icon">🌓</span>
+                    <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
                 </button>
                 <span class="top-bar-badge" id="view-badge">ansible</span>
             </div>
@@ -617,9 +640,9 @@
             <div id="ansible-view" class="view-section active">
                 <div class="grid-2">
                     <div class="card section">
-                        <div class="card-title">My Playbooks</div>
+                        <div class="card-title" data-i18n="card_playbooks">My Playbooks</div>
                         <div id="playbookList" class="playbook-list">
-                            <p style="padding: 14px; color: var(--text-muted); font-size: 12px;">Fetching playbooks...</p>
+                            <p style="padding: 14px; color: var(--text-muted); font-size: 12px;" data-i18n="fetching_playbooks">Fetching playbooks...</p>
                         </div>
                         <button id="deployButton" style="max-width: 240px; margin-top: 16px;">▶ Deploy Selected</button>
                     </div>
@@ -777,19 +800,7 @@
             }
         });
 
-        function toggleTheme() {
-            const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-theme') || 'dark';
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
-            if (newTheme === 'light') {
-                html.setAttribute('data-theme', 'light');
-                localStorage.setItem('theme', 'light');
-            } else {
-                html.removeAttribute('data-theme');
-                localStorage.setItem('theme', 'dark');
-            }
-        }
+
 
         function switchView(viewId, element) {
             document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
@@ -1274,6 +1285,74 @@
             deployButton.disabled = false;
             fetchMachines();
         });
+
+        // ── DASHBOARD TRANSLATIONS ────────────────────────────────
+        const dashboardTranslations = {
+            ca: {
+                top_bar_title: "Desplegador de Playbooks d'Ansible",
+                nav_label: "Navegació",
+                menu_playbooks: "Playbooks",
+                menu_machines: "Les meves màquines",
+                nav_admin: "Administració",
+                menu_management: "Gestió",
+                card_playbooks: "Els meus Playbooks",
+                fetching_playbooks: "Obtenint playbooks..."
+            },
+            es: {
+                top_bar_title: "Desplegador de Playbooks de Ansible",
+                nav_label: "Navegación",
+                menu_playbooks: "Playbooks",
+                menu_machines: "Mis Máquinas",
+                nav_admin: "Administración",
+                menu_management: "Gestión",
+                card_playbooks: "Mis Playbooks",
+                fetching_playbooks: "Obteniendo playbooks..."
+            },
+            en: {
+                top_bar_title: "Ansible Playbook Deployer",
+                nav_label: "Navigation",
+                menu_playbooks: "Playbooks",
+                menu_machines: "My Machines",
+                nav_admin: "Admin",
+                menu_management: "Management",
+                card_playbooks: "My Playbooks",
+                fetching_playbooks: "Fetching playbooks..."
+            }
+        };
+
+        function setLanguage(lang) {
+            document.documentElement.lang = lang;
+            localStorage.setItem('preferred-lang', lang);
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (dashboardTranslations[lang] && dashboardTranslations[lang][key]) {
+                    el.innerHTML = dashboardTranslations[lang][key];
+                }
+            });
+
+            document.querySelectorAll('[data-switch-lang]').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-switch-lang') === lang);
+            });
+        }
+
+        // Initialize language
+        const savedLang = localStorage.getItem('preferred-lang') || 'ca';
+        setLanguage(savedLang);
+
+        // Language buttons listener
+        document.querySelectorAll('[data-switch-lang]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setLanguage(btn.getAttribute('data-switch-lang'));
+            });
+        });
+
+        // ── THEME TOGGLE ──────────────────────────────────────────
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            localStorage.setItem('theme', currentTheme);
+        }
 
         fetchPlaybooks();
     </script>
