@@ -1055,7 +1055,7 @@
             const wrapper = document.getElementById('ttyWrapper');
             const placeholder = document.getElementById('ttyPlaceholder');
             const ttyTitle = document.getElementById('ttyTitle');
-            const url = `http://${ip}:7681`;
+            const url = `/terminal/${ip}/`;
             ttyTitle.textContent = `Terminal — ${name} (${ip})`;
             iframe.src = url;
             wrapper.style.display = 'block';

@@ -86,6 +86,14 @@ server {
     listen 80;
     server_name _;
 
+    location ~ ^/terminal/(?<target_ip>[\d\.]+)/ {
+        proxy_pass http://$target_ip:7681/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+    }
+
     location / {
         include proxy_params;
         proxy_pass http://unix:$APP_PATH/deployone.sock;
