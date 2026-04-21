@@ -29,6 +29,7 @@ def init_db():
                 password_hash VARCHAR(255) NOT NULL,
                 role VARCHAR(20) DEFAULT 'client',
                 email VARCHAR(100),
+                is_verified BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB
             ''')
@@ -66,15 +67,15 @@ def init_db():
             cursor.execute("SELECT client_id FROM users WHERE username = %s", ('admin',))
             if not cursor.fetchone():
                 admin_pass = generate_password_hash('alumnat')
-                cursor.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", 
-                               ('admin', admin_pass, 'admin'))
+                cursor.execute("INSERT INTO users (username, password_hash, role, is_verified) VALUES (%s, %s, %s, %s)", 
+                               ('admin', admin_pass, 'admin', True))
 
             # Add a test user
             cursor.execute("SELECT client_id FROM users WHERE username = %s", ('test',))
             if not cursor.fetchone():
                 test_pass = generate_password_hash('test')
-                cursor.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", 
-                               ('test', test_pass, 'user'))
+                cursor.execute("INSERT INTO users (username, password_hash, role, is_verified) VALUES (%s, %s, %s, %s)", 
+                               ('test', test_pass, 'user', True))
 
             conn.commit()
 

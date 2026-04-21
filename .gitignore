@@ -1,1 +1,22 @@
+# DeployOne Summary
+DEPLOYONE_SUMMARY.md
 deployone_architecture_summary.md
+
+# Environments
+.env
+.venv
+venv/
+ENV/
+
+# Database
+*.db
+*.sqlite
+
+# IDEs
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class

@@ -85,6 +85,14 @@ cat <<EOF | sudo tee /etc/nginx/sites-available/deployone
 server {
     listen 80;
     server_name _;
+    
+    # Security Headers
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     location ~ ^/terminal/(?<target_ip>[\d\.]+)/ {
         proxy_pass http://$target_ip:7681/;

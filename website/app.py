@@ -6,6 +6,7 @@ import pymysql
 import os
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
+import re
 
 load_dotenv()
 
@@ -62,6 +63,42 @@ def ensure_required_tables():
 # Run table check on startup
 ensure_required_tables()
 
+def validate_password(password):
+    """
+    Validates that the password meets complexity requirements:
+    - Minimum 10 characters
+    - At least one uppercase letter
+    - At least one number
+    - At least one special character
+    """
+    if len(password) < 10:
+        return False, "Password must be at least 10 characters long."
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter."
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one number."
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False, "Password must contain at least one special character."
+    return True, ""
+
+@app.after_request
+def add_security_headers(response):
+    # Standard security headers
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self';"
+    )
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
 def login_required(f):
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
@@ -108,8 +145,11 @@ def login():
                 conn.close()
 
             if user and check_password_hash(user['password_hash'], password):
-                if 'tabs' not in session:
-                    session['tabs'] = {}
+                if not user.get('is_verified', True): # Default to True for old users without the column yet
+                    error = 'Account not verified. Please check your email.'
+                else:
+                    if 'tabs' not in session:
+                        session['tabs'] = {}
                 
                 # Store identity strictly for THIS tab
                 session['tabs'][tid] = {
@@ -135,19 +175,23 @@ def register():
         if not username or not password or not email:
             error = 'Username, password and email are required'
         else:
-            conn = get_db_connection()
-            try:
-                hashed_password = generate_password_hash(password)
-                with conn.cursor() as cursor:
-                    # Explicitly setting role to 'free' as default
-                    cursor.execute('INSERT INTO users (username, password_hash, email, role) VALUES (%s, %s, %s, %s)',
-                                (username, hashed_password, email, 'free'))
-                conn.commit()
-                return redirect(url_for('login'))
-            except pymysql.err.IntegrityError:
-                error = f'User {username} or email {email} is already registered.'
-            finally:
-                conn.close()
+            is_valid, msg = validate_password(password)
+            if not is_valid:
+                error = msg
+            else:
+                conn = get_db_connection()
+                try:
+                    hashed_password = generate_password_hash(password)
+                    with conn.cursor() as cursor:
+                        # Explicitly setting role to 'free' as default and is_verified to False
+                        cursor.execute('INSERT INTO users (username, password_hash, email, role, is_verified) VALUES (%s, %s, %s, %s, %s)',
+                                    (username, hashed_password, email, 'free', False))
+                    conn.commit()
+                    return redirect(url_for('login', registered='success'))
+                except pymysql.err.IntegrityError:
+                    error = f'User {username} or email {email} is already registered.'
+                finally:
+                    conn.close()
             
     return render_template('register.html', error=error)
 
