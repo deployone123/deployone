@@ -64,6 +64,14 @@ El proyecto se basa en una arquitectura de red segmentada para maximizar la segu
 * **Aislamiento de Red:** La base de datos solo acepta conexiones desde el segmento de red interno o el router configurado.
 * **Permisos de Socket:** El socket de Gunicorn está restringido al grupo `www-data` con un umask `007`.
 
+## 💾 Backups y Respaldo de Datos
+El sistema cuenta con un proceso de respaldo automatizado para garantizar la integridad de los datos:
+* **Frecuencia:** Copias de seguridad diarias a las **3:00 AM**.
+* **Infraestructura:** Gestión mediante un contenedor LXC dedicado (**Zerobyte**).
+* **Almacenamiento:** Uso de **Rclone** para sincronización con la nube (**Mega**).
+* **Seguridad:** Los archivos se cifran localmente en Zerobyte antes de ser subidos.
+* **Rendimiento:** El directorio de backups se conecta a Zerobyte mediante **passthrough** de disco para optimizar la velocidad.
+
 ## 🤝 Contribuciones
 
 Si quieres contribuir, por favor abre un *Issue* primero para discutir los cambios que te gustaría realizar.
