@@ -713,7 +713,7 @@ def list_playbooks_proxy():
                         for pb in all_playbooks:
                             path = pb['full_path'] if isinstance(pb, dict) else pb
                             pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
-                            pb_info['price'] = 10.00 if 'debian' not in path.lower() and 'dns' not in path.lower() else 5.00
+                            pb_info['price'] = 50.00
                             catalog.append(pb_info)
                         data['catalog'] = catalog
                 finally:
