@@ -51,13 +51,8 @@ El proyecto se basa en una arquitectura de red segmentada para maximizar la segu
     ```
 
 4.  **Despliegue con Systemd:**
-    1. Utilizar los .sh para automaticamente montar el servidor web y conectarlo a la base de datos.
-    2. Copiar el archivo de servicio incluido para habilitar el arranque automático:
-    ```bash
-    sudo cp deployone.service /etc/systemd/system/
-    sudo systemctl enable --now deployone
-    ```
-
+    1. Utilizar setup_mariadb.sh en la maquina que quieras usar como base de datos.
+    2. Utilizar setup_nginx.sh en la maquina que quieras usar como servidor web, tendrás que poner la ip de la base de datos en el prompt, en el caso que hayas decidido tener la base de datos y el servidor web en la misma maquina puedes usar 127.0.0.1
 ## 🔒 Seguridad
 
 * **Hashing de contraseñas:** Implementado mediante `werkzeug.security` usando el método `scrypt`.
