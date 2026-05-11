@@ -756,6 +756,10 @@ def deploy_playbook_proxy():
                 is_free = 'debian' in playbook.lower() or 'dns' in playbook.lower()
                 
                 if is_free:
+                    # PRO users have all free playbooks unlocked automatically
+                    if g.user['role'] == 'pro':
+                        continue
+
                     cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], playbook))
                     if cursor.fetchone():
                         return jsonify({"error": f"Trial for {playbook} already used. Please purchase to deploy again."}), 403
