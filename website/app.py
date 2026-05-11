@@ -747,24 +747,21 @@ def deploy_playbook_proxy():
                 if g.user['role'] == 'admin':
                     continue
                 
-                # Check if it's a free playbook trial
+                # Check if purchased FIRST (Ownership overrides trial status)
+                cursor.execute("SELECT id FROM purchased_playbooks WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], playbook))
+                if cursor.fetchone():
+                    continue
+
+                # If not purchased, check if it's a free playbook trial
                 is_free = 'debian' in playbook.lower() or 'dns' in playbook.lower()
                 
                 if is_free:
                     cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], playbook))
                     if cursor.fetchone():
-                        # If trial used, check if purchased
-                        cursor.execute("SELECT id FROM purchased_playbooks WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], playbook))
-                        if not cursor.fetchone():
-                            return jsonify({"error": f"Trial for {playbook} already used. Please purchase to deploy again."}), 403
-                    else:
-                        # Trial available, but we only record it AFTER a successful Ansible call
-                        pass
+                        return jsonify({"error": f"Trial for {playbook} already used. Please purchase to deploy again."}), 403
                 else:
-                    # Not a free playbook, must be purchased
-                    cursor.execute("SELECT id FROM purchased_playbooks WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], playbook))
-                    if not cursor.fetchone():
-                        return jsonify({"error": f"You haven't purchased {playbook}."}), 403
+                    # Not a free playbook and not purchased
+                    return jsonify({"error": f"You haven't purchased {playbook}."}), 403
             
             # Note: We don't commit here for trials anymore
             conn.commit()
