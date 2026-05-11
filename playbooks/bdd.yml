@@ -11,7 +11,6 @@
     storage: "local-lvm"
     storage_amount: "4"
 
-
   tasks:
     - name: Load secrets file
       include_vars:
@@ -111,8 +110,8 @@
 - name: Install bdd inside the LXC
   hosts: bdd_containers
   gather_facts: false
-
   vars:
+    proxmox_host: "10.1.100.100"
     db_name: "produccion_db"
     db_user: "admin_web"
     db_pass: "CambiaEstaClave123!"

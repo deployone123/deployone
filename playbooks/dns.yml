@@ -105,6 +105,8 @@
 
 - name: Install dnsmasq inside the LXC
   hosts: dns_containers
+  vars:
+    proxmox_host: "10.1.100.100"
   gather_facts: false
   
   tasks:

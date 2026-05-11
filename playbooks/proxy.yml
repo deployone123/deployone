@@ -108,6 +108,8 @@
 
 - name: Install NPM inside the LXC
   hosts: proxy_containers
+  vars:
+    proxmox_host: "10.1.100.100"
   gather_facts: false
   vars:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
