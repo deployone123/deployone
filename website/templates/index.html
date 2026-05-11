@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeployOne — Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <!-- SweetAlert2 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         // Immediate execution to prevent theme flicker and manage Tab ID
-        (function() {
+        (function () {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             if (savedTheme === 'light') {
                 document.documentElement.setAttribute('data-theme', 'light');
@@ -68,7 +71,11 @@
             --accent-dim: rgba(86, 116, 255, 0.15);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
             font-family: var(--sans);
@@ -83,20 +90,25 @@
 
         body::before {
             content: '';
-            position: fixed; inset: 0;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
             background-size: 50px 50px;
             pointer-events: none;
             z-index: -1;
         }
 
         .bg-glow {
-            position: fixed; width: 600px; height: 600px;
+            position: fixed;
+            width: 600px;
+            height: 600px;
             background: radial-gradient(circle, rgba(86, 116, 255, 0.05) 0%, transparent 70%);
-            border-radius: 50%; filter: blur(80px);
-            pointer-events: none; z-index: -1;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: -1;
         }
 
         /* ===== SIDEBAR ===== */
@@ -120,10 +132,13 @@
         }
 
         .sidebar-logo-icon {
-            width: 30px; height: 30px;
+            width: 30px;
+            height: 30px;
             background: linear-gradient(135deg, var(--accent), var(--accent2));
             border-radius: 7px;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 15px;
         }
 
@@ -134,7 +149,9 @@
             letter-spacing: -0.04em;
         }
 
-        .sidebar-logo-text span { color: var(--accent); }
+        .sidebar-logo-text span {
+            color: var(--accent);
+        }
 
         .sidebar-nav {
             flex-grow: 1;
@@ -163,15 +180,22 @@
             margin-bottom: 2px;
         }
 
-        .menu-item:hover { background: var(--surface2); color: var(--text); }
+        .menu-item:hover {
+            background: var(--surface2);
+            color: var(--text);
+        }
 
         .menu-item.active {
             background: var(--accent-dim);
             color: var(--accent);
-            border: 1px solid rgba(0,212,170,0.2);
+            border: 1px solid rgba(0, 212, 170, 0.2);
         }
 
-        .menu-item .icon { font-size: 15px; width: 20px; text-align: center; }
+        .menu-item .icon {
+            font-size: 15px;
+            width: 20px;
+            text-align: center;
+        }
 
         .sidebar-footer {
             padding: 16px 18px;
@@ -208,7 +232,9 @@
             transition: opacity 0.2s;
         }
 
-        .logout-link:hover { opacity: 0.75; }
+        .logout-link:hover {
+            opacity: 0.75;
+        }
 
         /* ===== MAIN CONTENT ===== */
         .main-content {
@@ -237,8 +263,11 @@
             border: 1px solid var(--border);
             background: var(--surface2);
             color: var(--text);
-            width: 38px; height: 38px;
-            display: flex; align-items: center; justify-content: center;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: all 0.2s;
         }
 
@@ -246,25 +275,44 @@
             border-color: var(--accent);
             background: var(--accent-dim);
         }
-        
-        .sun-icon { display: none; }
-        [data-theme="light"] .sun-icon { display: block; }
-        [data-theme="light"] .moon-icon { display: none; }
+
+        .sun-icon {
+            display: none;
+        }
+
+        [data-theme="light"] .sun-icon {
+            display: block;
+        }
+
+        [data-theme="light"] .moon-icon {
+            display: none;
+        }
 
         .lang-switcher {
-            display: flex; gap: 4px;
+            display: flex;
+            gap: 4px;
             background: var(--surface2);
-            padding: 4px; border-radius: 10px;
+            padding: 4px;
+            border-radius: 10px;
             border: 1px solid var(--border);
         }
+
         .lang-btn {
-            background: none; border: none;
-            color: var(--text-dim); font-size: 11px; font-weight: 700;
-            padding: 4px 8px; border-radius: 6px; cursor: pointer;
-            transition: all 0.2s; font-family: var(--mono);
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--mono);
         }
+
         .lang-btn.active {
-            background: var(--accent); color: white;
+            background: var(--accent);
+            color: white;
         }
 
         [data-theme="light"] pre {
@@ -301,7 +349,7 @@
             border-radius: 20px;
             background: var(--accent-dim);
             color: var(--accent);
-            border: 1px solid rgba(0,212,170,0.2);
+            border: 1px solid rgba(0, 212, 170, 0.2);
         }
 
         .content-area {
@@ -311,11 +359,18 @@
         }
 
         /* ===== VIEWS ===== */
-        .view-section { display: none; }
-        .view-section.active { display: block; }
+        .view-section {
+            display: none;
+        }
+
+        .view-section.active {
+            display: block;
+        }
 
         /* ===== FORMS ===== */
-        .form-group { margin-bottom: 16px; }
+        .form-group {
+            margin-bottom: 16px;
+        }
 
         label {
             display: block;
@@ -327,7 +382,8 @@
             margin-bottom: 6px;
         }
 
-        select, input {
+        select,
+        input {
             width: 100%;
             padding: 9px 12px;
             background: var(--bg);
@@ -341,12 +397,15 @@
             box-sizing: border-box;
         }
 
-        select:focus, input:focus {
+        select:focus,
+        input:focus {
             border-color: var(--accent);
-            box-shadow: 0 0 0 2px rgba(0,212,170,0.1);
+            box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.1);
         }
 
-        input::placeholder { color: var(--text-muted); }
+        input::placeholder {
+            color: var(--text-muted);
+        }
 
         button {
             padding: 9px 18px;
@@ -364,14 +423,42 @@
             margin-top: 8px;
         }
 
-        button:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
-        button:active:not(:disabled) { transform: translateY(0); }
-        button:disabled { background: #2d3748; color: var(--text-muted); cursor: not-allowed; }
+        button:hover:not(:disabled) {
+            opacity: 0.85;
+            transform: translateY(-1px);
+        }
 
-        .btn-danger { background: #dc2626; color: white; }
-        .btn-blue { background: var(--accent2); color: white; }
-        .btn-green { background: var(--success); color: white; }
-        .btn-sm { width: auto; padding: 5px 12px; margin-top: 0; font-size: 11px; }
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #2d3748;
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-blue {
+            background: var(--accent2);
+            color: white;
+        }
+
+        .btn-green {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-sm {
+            width: auto;
+            padding: 5px 12px;
+            margin-top: 0;
+            font-size: 11px;
+        }
 
         /* ===== PLAYBOOK LIST ===== */
         .playbook-list {
@@ -391,8 +478,13 @@
             transition: background 0.15s;
         }
 
-        .playbook-item:last-child { border-bottom: none; }
-        .playbook-item:hover { background: var(--surface2); }
+        .playbook-item:last-child {
+            border-bottom: none;
+        }
+
+        .playbook-item:hover {
+            background: var(--surface2);
+        }
 
         .playbook-item input[type="checkbox"] {
             width: auto;
@@ -400,7 +492,16 @@
             accent-color: var(--accent);
         }
 
-        .playbook-item label { margin-bottom: 0; font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; flex-grow: 1; font-weight: 400; }
+        .playbook-item label {
+            margin-bottom: 0;
+            font-size: 13px;
+            color: var(--text);
+            text-transform: none;
+            letter-spacing: 0;
+            cursor: pointer;
+            flex-grow: 1;
+            font-weight: 400;
+        }
 
         /* ===== LOG TABS ===== */
         .log-tabs {
@@ -424,7 +525,10 @@
             transition: all 0.15s;
         }
 
-        .log-tab:hover { background: var(--surface2); color: var(--text); }
+        .log-tab:hover {
+            background: var(--surface2);
+            color: var(--text);
+        }
 
         .log-tab.active {
             background: #0d1117;
@@ -433,10 +537,17 @@
             font-weight: 600;
         }
 
-        .log-tab .status-icon { margin-right: 6px; }
+        .log-tab .status-icon {
+            margin-right: 6px;
+        }
 
-        .log-content { display: none; }
-        .log-content.active { display: block; }
+        .log-content {
+            display: none;
+        }
+
+        .log-content.active {
+            display: block;
+        }
 
         pre {
             background: #0d1117;
@@ -462,9 +573,23 @@
             font-size: 12px;
         }
 
-        .success { background: rgba(34,197,94,0.1); color: #86efac; border: 1px solid rgba(34,197,94,0.2); }
-        .error { background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
-        .info { background: rgba(59,130,246,0.1); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+        .success {
+            background: rgba(34, 197, 94, 0.1);
+            color: #86efac;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .info {
+            background: rgba(59, 130, 246, 0.1);
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
 
         /* ===== CARDS ===== */
         .card {
@@ -475,7 +600,11 @@
             backdrop-filter: blur(10px);
             transition: var(--transition);
         }
-        .card:hover { border-color: var(--border2); background: var(--surface2); }
+
+        .card:hover {
+            border-color: var(--border2);
+            background: var(--surface2);
+        }
 
         .card-title {
             font-family: 'Syne', sans-serif;
@@ -497,10 +626,21 @@
             display: inline-block;
         }
 
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
 
-        .section { margin-bottom: 24px; }
+        .grid-auto {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
 
         /* ===== MACHINE CARDS ===== */
         .machine-card {
@@ -513,7 +653,7 @@
 
         .machine-card:hover {
             border-color: var(--border2);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
         .status-dot {
@@ -523,14 +663,33 @@
             display: inline-block;
             margin-right: 6px;
         }
-        .status-online { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
-        .status-offline { background-color: var(--error); }
-        .status-checking { background-color: var(--warning); animation: pulse 1s infinite; }
+
+        .status-online {
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .status-offline {
+            background-color: var(--error);
+        }
+
+        .status-checking {
+            background-color: var(--warning);
+            animation: pulse 1s infinite;
+        }
 
         @keyframes pulse {
-            0% { opacity: 0.4; }
-            50% { opacity: 1; }
-            100% { opacity: 0.4; }
+            0% {
+                opacity: 0.4;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.4;
+            }
         }
 
         .machine-card-name {
@@ -547,7 +706,9 @@
             margin-bottom: 4px;
         }
 
-        .machine-meta strong { color: var(--text-dim); }
+        .machine-meta strong {
+            color: var(--text-dim);
+        }
 
         /* ===== TTY ===== */
         .tty-container {
@@ -571,14 +732,17 @@
             height: 100%;
         }
 
-        .tty-iframe { 
+        .tty-iframe {
             flex: 1;
-            width: 100%; 
-            height: 100%; 
-            border: none; 
-            display: none; 
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
         }
-        .tty-iframe.active { display: block; }
+
+        .tty-iframe.active {
+            display: block;
+        }
 
         .close-tab {
             margin-left: 8px;
@@ -586,7 +750,11 @@
             transition: opacity 0.2s;
             cursor: pointer;
         }
-        .close-tab:hover { opacity: 1; color: var(--error); }
+
+        .close-tab:hover {
+            opacity: 1;
+            color: var(--error);
+        }
 
         .tty-placeholder {
             text-align: center;
@@ -600,7 +768,12 @@
         }
 
         /* ===== TABLES ===== */
-        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
         .data-table th {
             background: var(--surface2);
             padding: 10px 14px;
@@ -611,24 +784,47 @@
             color: var(--text-muted);
             border-bottom: 1px solid var(--border);
         }
+
         .data-table td {
             padding: 10px 14px;
             border-bottom: 1px solid var(--border);
             color: var(--text-dim);
         }
-        .data-table tr:last-child td { border-bottom: none; }
-        .data-table tr:hover td { background: var(--surface2); }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover td {
+            background: var(--surface2);
+        }
 
         /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #3d4f6b; }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border2);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3d4f6b;
+        }
     </style>
 </head>
+
 <body>
     <div class="bg-glow" style="top: -200px; left: -100px;"></div>
-    <div class="bg-glow" style="bottom: -100px; right: 10%; background: radial-gradient(circle, rgba(168, 85, 247, 0.04) 0%, transparent 70%);"></div>
+    <div class="bg-glow"
+        style="bottom: -100px; right: 10%; background: radial-gradient(circle, rgba(168, 85, 247, 0.04) 0%, transparent 70%);">
+    </div>
 
     <div class="sidebar">
         <div class="sidebar-logo">
@@ -672,8 +868,22 @@
                     <button class="lang-btn" data-switch-lang="en">EN</button>
                 </div>
                 <button onclick="toggleTheme()" class="theme-toggle" title="Toggle Light/Dark Mode">
-                    <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                    <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
                 </button>
                 <span class="top-bar-badge" id="view-badge">ansible</span>
             </div>
@@ -687,7 +897,8 @@
                     <div class="card section">
                         <div class="card-title" data-i18n="card_playbooks">My Playbooks</div>
                         <div id="playbookList" class="playbook-list">
-                            <p style="padding: 14px; color: var(--text-muted); font-size: 12px;" data-i18n="fetching_playbooks">Fetching playbooks...</p>
+                            <p style="padding: 14px; color: var(--text-muted); font-size: 12px;"
+                                data-i18n="fetching_playbooks">Fetching playbooks...</p>
                         </div>
                         <button id="deployButton" style="max-width: 240px; margin-top: 16px;">▶ Deploy Selected</button>
                     </div>
@@ -704,22 +915,26 @@
 
                 <div id="logTabs" class="log-tabs" style="display: none;"></div>
                 <div id="logContainer">
-                    <pre id="initialOutput" style="border-radius: 6px; margin-top: 16px; color: var(--text-muted);">// Ready for deployment...</pre>
+                    <pre id="initialOutput"
+                        style="border-radius: 6px; margin-top: 16px; color: var(--text-muted);">// Ready for deployment...</pre>
                 </div>
             </div>
 
             <!-- ===== CONNECTIONS VIEW ===== -->
             <div id="connections-view" class="view-section">
                 <div class="section">
-                    <div class="card-title" style="font-family: 'Syne'; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
-                        <span style="width:3px;height:16px;background:var(--accent);border-radius:2px;display:inline-block;"></span>
+                    <div class="card-title"
+                        style="font-family: 'Syne'; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span
+                            style="width:3px;height:16px;background:var(--accent);border-radius:2px;display:inline-block;"></span>
                         Assigned Machines
                     </div>
                     <div id="machines-list" class="grid-auto"></div>
                 </div>
 
                 <div id="ttyWrapper" class="tty-container" style="display: none;">
-                    <div id="ttyTabs" class="log-tabs" style="display: none; border-bottom: 1px solid var(--border2); padding: 0 10px;"></div>
+                    <div id="ttyTabs" class="log-tabs"
+                        style="display: none; border-bottom: 1px solid var(--border2); padding: 0 10px;"></div>
                     <div id="ttyContainer" style="flex: 1; display: flex; flex-direction: column;"></div>
                 </div>
 
@@ -759,7 +974,8 @@
                             <select id="newMachineOwner"></select>
                         </div>
                         <div style="flex: 0 0 100%; display: flex; justify-content: flex-end;">
-                            <button onclick="addMachine()" style="width: auto; padding: 9px 24px; margin-top: 0;">+ Create &amp; Link Machine</button>
+                            <button onclick="addMachine()" style="width: auto; padding: 9px 24px; margin-top: 0;">+
+                                Create &amp; Link Machine</button>
                         </div>
                     </div>
                     <div id="add-machine-message" class="message" style="display: none;"></div>
@@ -783,7 +999,8 @@
                     <div class="card section">
                         <div class="card-title">Client Machines</div>
                         <div id="user-machines-list">
-                            <p style="color: var(--text-muted); font-size: 12px;">Select a client to view their machines.</p>
+                            <p style="color: var(--text-muted); font-size: 12px;">Select a client to view their
+                                machines.</p>
                         </div>
                     </div>
                 </div>
@@ -804,7 +1021,7 @@
     <script>
         // Tab-aware Fetch Wrapper
         const originalFetch = window.fetch;
-        window.fetch = function(resource, config = {}) {
+        window.fetch = function (resource, config = {}) {
             const tid = sessionStorage.getItem('active_tab_id');
             if (tid) {
                 // For strings
@@ -924,20 +1141,20 @@
         async function performDelete(machineId) {
             if (!confirm("Are you sure you want to DELETE this machine from the database? This cannot be undone and will not affect Proxmox.")) return;
             try {
-                const response = await fetch('/api/admin/delete_machine', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ machine_id: machineId }) 
+                const response = await fetch('/api/admin/delete_machine', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ machine_id: machineId })
                 });
-                if (response.ok) { 
+                if (response.ok) {
                     const result = await response.json();
                     alert(result.message);
-                    fetchManageData(); 
-                    fetchUserMachines(); 
-                    fetchMachines(); 
-                } else { 
+                    fetchManageData();
+                    fetchUserMachines();
+                    fetchMachines();
+                } else {
                     const result = await response.json();
-                    alert("Failed to delete machine: " + (result.error || "Unknown error")); 
+                    alert("Failed to delete machine: " + (result.error || "Unknown error"));
                 }
             } catch (error) { console.error("Error deleting machine:", error); alert("An error occurred."); }
         }
@@ -1050,7 +1267,7 @@
                 const response = await fetch(`/api/machines/status/${machineId}`);
                 const data = await response.json();
                 dot.className = 'status-dot ' + (data.status === 'online' ? 'status-online' : 'status-offline');
-                
+
                 // Add or remove Sync button if offline (Only for Admins)
                 let syncBtn = document.getElementById(`sync-btn-${machineId}`);
                 if (userRole === 'admin' && data.status === 'offline' && !syncBtn) {
@@ -1125,14 +1342,14 @@
             const placeholder = document.getElementById('ttyPlaceholder');
             const tabsContainer = document.getElementById('ttyTabs');
             const container = document.getElementById('ttyContainer');
-            
+
             const tabId = `tty-tab-${ip.replace(/\./g, '-')}`;
             const existingTab = document.getElementById(tabId);
-            
+
             wrapper.style.display = 'block';
             placeholder.style.display = 'none';
             tabsContainer.style.display = 'flex';
-            
+
             if (existingTab) {
                 switchTTYTab(ip);
             } else {
@@ -1143,14 +1360,14 @@
                 tab.innerHTML = `<span>🖥 ${name}</span> <span class="close-tab" onclick="event.stopPropagation(); closeTTYTab('${ip}')">✕</span>`;
                 tab.onclick = () => switchTTYTab(ip);
                 tabsContainer.appendChild(tab);
-                
+
                 // Create new iframe
                 const iframe = document.createElement('iframe');
                 iframe.id = `tty-iframe-${ip.replace(/\./g, '-')}`;
                 iframe.className = 'tty-iframe active';
                 iframe.src = `/terminal/${ip}/`;
                 container.appendChild(iframe);
-                
+
                 switchTTYTab(ip);
             }
             wrapper.scrollIntoView({ behavior: 'smooth' });
@@ -1160,7 +1377,7 @@
             const safeIp = ip.replace(/\./g, '-');
             document.querySelectorAll('#ttyTabs .log-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('#ttyContainer .tty-iframe').forEach(c => c.classList.remove('active'));
-            
+
             document.getElementById(`tty-tab-${safeIp}`).classList.add('active');
             document.getElementById(`tty-iframe-${safeIp}`).classList.add('active');
         }
@@ -1169,12 +1386,12 @@
             const safeIp = ip.replace(/\./g, '-');
             const tab = document.getElementById(`tty-tab-${safeIp}`);
             const iframe = document.getElementById(`tty-iframe-${safeIp}`);
-            
+
             const wasActive = tab.classList.contains('active');
-            
+
             tab.remove();
             iframe.remove();
-            
+
             const remainingTabs = document.querySelectorAll('#ttyTabs .log-tab');
             if (remainingTabs.length > 0) {
                 if (wasActive) {
@@ -1206,18 +1423,18 @@
                 const response = await fetch('/list_playbooks');
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-                
+
                 // Update My Playbooks
                 playbookList.innerHTML = '';
-                if (data.playbooks.length === 0) { 
-                    playbookList.innerHTML = '<p style="padding: 14px; color: var(--text-muted); font-size: 12px;">No playbooks available. Visit the store!</p>'; 
+                if (data.playbooks.length === 0) {
+                    playbookList.innerHTML = '<p style="padding: 14px; color: var(--text-muted); font-size: 12px;">No playbooks available. Visit the store!</p>';
                 }
                 data.playbooks.forEach((playbook, index) => {
                     const name = typeof playbook === 'object' ? playbook.display_name : playbook;
                     const path = typeof playbook === 'object' ? playbook.full_path : playbook;
                     const isTrial = playbook.is_free && !playbook.owned;
                     const trialStatus = isTrial ? (playbook.trial_used ? '<span style="color:var(--error);font-size:10px;">(Trial Used)</span>' : '<span style="color:var(--success);font-size:10px;">(Free Trial)</span>') : '';
-                    
+
                     const item = document.createElement('div');
                     item.className = 'playbook-item';
                     item.innerHTML = `
@@ -1239,16 +1456,16 @@
                     data.catalog.forEach((pb) => {
                         const path = pb.full_path;
                         const name = pb.display_name;
-                        const price = pb.price || 10.00;
+                        const price = pb.price || 50.00;
                         const isOwned = pb.owned || data.playbooks.some(myPb => myPb.full_path === path);
-                        
+
                         const item = document.createElement('div');
                         item.className = 'playbook-item';
                         item.style.justifyContent = 'space-between';
                         item.innerHTML = `
                             <div style="font-size: 12px;">${name} <span style="color:var(--accent);">${price.toFixed(2)}€</span></div>
-                            ${isOwned ? '<span style="color:var(--success);font-size:11px;">Owned</span>' : 
-                            `<button onclick="buyPlaybook('${path}')" class="btn-sm btn-blue" style="margin:0;width:auto;">Buy</button>`}
+                            ${isOwned ? '<span style="color:var(--success);font-size:11px;">Owned</span>' :
+                                `<button onclick="buyPlaybook('${path}')" class="btn-sm btn-blue" style="margin:0;width:auto;">Buy</button>`}
                         `;
                         catalogList.appendChild(item);
                     });
@@ -1273,8 +1490,8 @@
             try {
                 const response = await fetch('/api/buy_playbook', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({playbook_path: playbookPath})
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playbook_path: playbookPath })
                 });
                 const result = await response.json();
                 if (response.ok) {
@@ -1345,43 +1562,43 @@
                         if (result.log) {
                             logElement.textContent = result.log;
                             logElement.scrollTop = logElement.scrollHeight;
-                            
+
                             // More robust regex for machine detection
                             const vmidMatch = result.log.match(/(?:VMID|vmid)[:=]\s*(\d+)/i);
                             const ipMatch = result.log.match(/(?:IP|Address)[:=]\s*([\d\.]+)/i);
                             const nameMatch = result.log.match(/(?:NAME|Name|Hostname)[:=]\s*([a-zA-Z0-9\-_]+)/i);
                             const typeMatch = result.log.match(/(?:TYPE|Type)[:=]\s*(lxc|qemu|vm|container)/i);
-                            
+
                             if (vmidMatch && ipMatch) {
                                 let mType = typeMatch ? typeMatch[1].toLowerCase() : 'lxc';
                                 if (mType === 'vm' || mType === 'qemu') mType = 'qemu';
                                 if (mType === 'container') mType = 'lxc';
 
-                                const payload = { 
-                                    proxmox_vmid: vmidMatch[1], 
+                                const payload = {
+                                    proxmox_vmid: vmidMatch[1],
                                     internal_ip: ipMatch[1],
                                     machine_name: nameMatch ? nameMatch[1] : `VM-${vmidMatch[1]}`,
                                     machine_type: mType
                                 };
-                                
-                                fetch('/api/machines/auto_register', { 
-                                    method: 'POST', 
-                                    headers: { 'Content-Type': 'application/json' }, 
-                                    body: JSON.stringify(payload) 
+
+                                fetch('/api/machines/auto_register', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(payload)
                                 }).catch(err => console.error("Auto-register failed:", err));
                             }
                         }
-                        if (result.finished) { 
-                            clearInterval(interval); 
+                        if (result.finished) {
+                            clearInterval(interval);
                             const status = result.status === 'failed' ? 'error' : 'success';
-                            updateTabStatus(taskId, status); 
-                            resolve(status === 'success'); 
+                            updateTabStatus(taskId, status);
+                            resolve(status === 'success');
                         }
-                    } catch (error) { 
-                        console.error(`Error polling logs for ${taskId}:`, error); 
-                        clearInterval(interval); 
-                        updateTabStatus(taskId, 'error'); 
-                        resolve(false); 
+                    } catch (error) {
+                        console.error(`Error polling logs for ${taskId}:`, error);
+                        clearInterval(interval);
+                        updateTabStatus(taskId, 'error');
+                        resolve(false);
                     }
                 }, 2000);
             });
@@ -1510,4 +1727,5 @@
         }
     </script>
 </body>
+
 </html>
