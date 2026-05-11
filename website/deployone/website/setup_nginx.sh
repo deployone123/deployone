@@ -43,14 +43,9 @@ else
     APP_PATH=$(pwd)
 fi
 
-# Ensure requirements.txt exists before proceeding
-if [ ! -f "$APP_PATH/requirements.txt" ]; then
-    echo "Error: $APP_PATH/requirements.txt not found!"
-    exit 1
-fi
-
 # 5. Create .env file
 echo "Configuring environment..."
+# Ensure we are in APP_PATH
 cd "$APP_PATH"
 cat <<EOF > .env
 DB_HOST=$MARIADB_IP
@@ -64,18 +59,16 @@ EOF
 
 # 6. Setup Python Virtual Environment
 echo "Setting up Python virtual environment in $APP_PATH..."
-python3 -m venv "$APP_PATH/venv"
-
-# Use the venv pip directly to avoid "externally-managed-environment" errors
-echo "Installing dependencies..."
-"$APP_PATH/venv/bin/pip" install --upgrade pip
-"$APP_PATH/venv/bin/pip" install -r "$APP_PATH/requirements.txt"
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
 
 # 7. Initialize Database
 echo "Do you want to initialize the database schema? (This will attempt to connect to $MARIADB_IP)"
 read -p "(y/n): " INIT_DB
 if [ "$INIT_DB" == "y" ]; then
-    "$APP_PATH/venv/bin/python3" "$APP_PATH/init_db.py"
+    python3 init_db.py
 fi
 
 # 8. Configure Nginx
@@ -85,22 +78,6 @@ cat <<EOF | sudo tee /etc/nginx/sites-available/deployone
 server {
     listen 80;
     server_name _;
-    
-    # Security Headers
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-
-    location ~ ^/terminal/(?<target_ip>[\d\.]+)/ {
-        proxy_pass http://$target_ip:7681/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host $host;
-    }
 
     location / {
         include proxy_params;

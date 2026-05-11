@@ -16,6 +16,17 @@
       include_vars:
         file: vars/secrets.yml
 
+    - name: Ensure Host VLAN Gateway exists
+      shell: |
+        VLAN_ID={{ user_id | default(1) }}
+        bridge vlan add dev vmbr4 vid $VLAN_ID self
+        if ! ip link show vmbr4.$VLAN_ID > /dev/null 2>&1; then
+          ip link add link vmbr4 name vmbr4.$VLAN_ID type vlan id $VLAN_ID
+          ip addr add 10.$VLAN_ID.0.1/24 dev vmbr4.$VLAN_ID
+          ip link set vmbr4.$VLAN_ID up
+        fi
+      delegate_to: "{{ proxmox_host }}"
+
     - name: Get next available VMID via shell (highest >= 1000 + 1)
       shell: |
         MAX_ID=$(pvesh get /cluster/resources --type vm --output-format yaml | grep "vmid:" | grep -oE "[0-9]+" | grep -E "^[1-9][0-9]{3,}$" | sort -n | tail -n 1)
@@ -44,7 +55,7 @@
           size: "{{ storage_amount | int }}"
         unprivileged: true
         netif:
-          net0: "name=eth0,bridge=vmbr4,ip=dhcp"
+          net0: "name=eth0,bridge=vmbr4,tag={{ user_id | default(1) }},ip=10.{{ user_id | default(1) }}.0.{{ (vmid | int % 240) + 10 }}/24,gw=10.{{ user_id | default(1) }}.0.1"
         state: present
 
     - name: Wait for container to start
@@ -102,15 +113,15 @@
         host: "{{ container_ip }}"
         port: 22
         delay: 5
-        timeout: 300
         state: started
       delegate_to: localhost
 
     - name: Verify SSH connection is functional
-      wait_for_connection:
-        connect_timeout: 10
-        sleep: 5
-        timeout: 300
+      command: uptime
+      retries: 10
+      delay: 5
+      register: result
+      until: result is succeeded
 
     - name: Installing nginx
       package:

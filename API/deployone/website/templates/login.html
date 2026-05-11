@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register — DeployOne</title>
+    <title>Login — DeployOne</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
@@ -73,8 +73,8 @@
         .glow-1 { width: 600px; height: 600px; background: rgba(86, 116, 255, 0.1); top: -200px; left: -100px; }
         .glow-2 { width: 400px; height: 400px; background: rgba(168, 85, 247, 0.08); bottom: -100px; right: 10%; }
 
-        .theme-toggle {
-            position: absolute; top: 20px; right: 20px; z-index: 1100;
+        .theme-toggle, .lang-toggle {
+            position: absolute; top: 20px; z-index: 1100;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border);
             color: var(--white);
@@ -83,7 +83,9 @@
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: var(--transition);
         }
-        .theme-toggle:hover { background: var(--surface); border-color: var(--accent); }
+        .theme-toggle { right: 20px; }
+        .lang-toggle { right: 72px; width: auto; padding: 0 12px; font-family: var(--mono); font-size: 0.75rem; font-weight: 700; }
+        .theme-toggle:hover, .lang-toggle:hover { background: var(--surface); border-color: var(--accent); }
         
         .sun-icon { display: none; }
         [data-theme="light"] .sun-icon { display: block; }
@@ -93,8 +95,8 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 32px;
-            padding: 3rem;
-            width: min(460px, 92vw);
+            padding: 4rem 3rem;
+            width: min(440px, 92vw);
             position: relative;
             z-index: 1;
             backdrop-filter: blur(20px);
@@ -104,49 +106,56 @@
         }
         .card:hover { transform: translateY(-5px); border-color: rgba(86, 116, 255, 0.3); }
 
-        .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 2rem; text-decoration: none; }
+        .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 2.5rem; text-decoration: none; }
         .logo-icon {
-            width: 36px; height: 36px;
+            width: 40px; height: 40px;
             background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
-            border-radius: 10px;
+            border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 18px;
+            font-size: 20px;
             box-shadow: 0 8px 20px rgba(86, 116, 255, 0.3);
         }
-        .logo-text { font-size: 1.4rem; font-weight: 800; color: var(--white); letter-spacing: -0.04em; }
+        .logo-text { font-size: 1.6rem; font-weight: 800; color: var(--white); letter-spacing: -0.04em; }
         .logo-text span { color: var(--accent); }
 
-        h2 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 0.5rem; color: var(--white); }
-        .subtitle { font-size: 0.9rem; color: var(--muted); margin-bottom: 2rem; font-family: var(--mono); opacity: 0.7; }
+        h2 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 0.5rem; color: var(--white); }
+        .subtitle { font-size: 0.95rem; color: var(--muted); margin-bottom: 2.5rem; font-family: var(--mono); opacity: 0.7; }
 
-        .form-group { margin-bottom: 1.25rem; }
-        label { display: block; font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.6rem; }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.6rem; }
         input {
-            width: 100%; padding: 0.9rem 1.1rem;
+            width: 100%; padding: 1rem 1.25rem;
             background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
-            border-radius: 10px; color: var(--text);
-            font-family: var(--sans); font-size: 0.95rem;
+            border-radius: 12px; color: var(--text);
+            font-family: var(--sans); font-size: 1rem;
             outline: none; transition: var(--transition);
         }
         input:focus { border-color: var(--accent); background: rgba(86, 116, 255, 0.05); box-shadow: 0 0 0 4px rgba(86, 116, 255, 0.1); }
-        input::placeholder { color: rgba(148, 163, 184, 0.3); }
+        input::placeholder { color: rgba(148, 163, 184, 0.4); }
 
         .btn {
-            width: 100%; padding: 0.9rem;
+            width: 100%; padding: 1rem;
             background: var(--accent); color: white;
-            border: none; border-radius: 12px;
+            border: none; border-radius: 14px;
             font-family: var(--sans); font-size: 1rem;
             font-weight: 700; cursor: pointer; margin-top: 1rem;
             transition: var(--transition);
-            box-shadow: 0 10px 25px rgba(86, 116, 255, 0.2);
+            box-shadow: 0 12px 32px rgba(86, 116, 255, 0.3);
         }
-        .btn:hover { background: #4663f0; transform: translateY(-2px); box-shadow: 0 15px 35px rgba(86, 116, 255, 0.4); }
+        .btn:hover { background: #4663f0; transform: translateY(-2px); box-shadow: 0 16px 40px rgba(86, 116, 255, 0.5); }
         .btn:active { transform: translateY(0); }
 
         .error-box {
             background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);
-            color: #fca5a5; padding: 0.9rem; border-radius: 10px;
-            font-size: 0.85rem; margin-bottom: 1.5rem;
+            color: #fca5a5; padding: 1rem; border-radius: 12px;
+            font-size: 0.9rem; margin-bottom: 2rem;
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
         }
 
         .footer-link { text-align: center; margin-top: 2rem; font-size: 0.9rem; color: var(--muted); }
@@ -171,66 +180,57 @@
             <div class="logo-icon">⚡</div>
             <div class="logo-text">Deploy<span>One</span></div>
         </a>
-        <h2 data-i18n="reg_title">Create account</h2>
-        <p class="subtitle">// NEW CLIENT REGISTRATION</p>
+        <h2 data-i18n="login_title">Welcome back</h2>
+        <p class="subtitle">// AUTHENTICATE TO CONTINUE</p>
         
         {% if error %}
             <div class="error-box">⚠ {{ error }}</div>
         {% endif %}
         
-        <form method="POST">
+        <form method="POST" id="loginForm">
+            <input type="hidden" name="tid" id="tidInput">
             <div class="form-group">
-                <label for="username" data-i18n="reg_user">Username</label>
+                <label for="username" data-i18n="login_user">Username or Email</label>
                 <input type="text" id="username" name="username" placeholder="your_username" required autofocus>
             </div>
             <div class="form-group">
-                <label for="email" data-i18n="reg_email">Email</label>
-                <input type="email" id="email" name="email" placeholder="you@example.com" required>
-            </div>
-            <div class="form-group">
-                <label for="password" data-i18n="reg_pass">Password</label>
+                <label for="password" data-i18n="login_pass">Password</label>
                 <input type="password" id="password" name="password" placeholder="••••••••••" required>
-                <p style="font-size: 0.65rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.4;">
-                    * Min 10 chars, 1 uppercase, 1 number, 1 special character.
-                </p>
             </div>
-            <button type="submit" class="btn" data-i18n="reg_btn">→ Create Account</button>
+            <button type="submit" class="btn" data-i18n="login_btn">→ Sign In</button>
         </form>
         
         <div class="footer-link">
-            <span data-i18n="reg_has_acc">Already have an account?</span> 
-            <a href="{{ url_for('login') }}" data-i18n="reg_login">Login here</a>
+            <span data-i18n="login_no_acc">No account?</span> 
+            <a href="{{ url_for('register') }}" data-i18n="login_reg">Register here</a>
         </div>
     </div>
 
     <script>
         const translations = {
             ca: {
-                reg_title: "Crear compte",
-                reg_user: "Usuari",
-                reg_email: "Email",
-                reg_pass: "Contrasenya",
-                reg_btn: "→ Crear compte",
-                reg_has_acc: "Ja tens un compte?",
-                reg_login: "Inicia sessió aquí"
+                login_title: "Bentornat",
+                login_user: "Usuari o Email",
+                login_pass: "Contrasenya",
+                login_btn: "→ Iniciar sessió",
+                login_no_acc: "No tens compte?",
+                login_reg: "Registra't aquí"
             },
             es: {
-                reg_title: "Crear cuenta",
-                reg_user: "Usuario",
-                reg_email: "Email",
-                reg_pass: "Contraseña",
-                reg_btn: "→ Crear cuenta",
-                reg_has_acc: "¿Ya tienes una cuenta?",
-                reg_login: "Inicia sesión aquí"
+                login_title: "Bienvenido de nuevo",
+                login_user: "Usuario o Email",
+                login_pass: "Contraseña",
+                login_btn: "→ Iniciar sesión",
+                login_no_acc: "¿No tienes cuenta?",
+                login_reg: "Regístrate aquí"
             },
             en: {
-                reg_title: "Create account",
-                reg_user: "Username",
-                reg_email: "Email",
-                reg_pass: "Password",
-                reg_btn: "→ Create Account",
-                reg_has_acc: "Already have an account?",
-                reg_login: "Login here"
+                login_title: "Welcome back",
+                login_user: "Username or Email",
+                login_pass: "Password",
+                login_btn: "→ Sign In",
+                login_no_acc: "No account?",
+                login_reg: "Register here"
             }
         };
 
@@ -247,6 +247,10 @@
 
         const savedLang = localStorage.getItem('preferred-lang') || 'ca';
         setLanguage(savedLang);
+
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            document.getElementById('tidInput').value = sessionStorage.getItem('active_tab_id');
+        });
 
         function toggleTheme() {
             const html = document.documentElement;

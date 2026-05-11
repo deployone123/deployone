@@ -5,7 +5,7 @@
     proxmox_host: "10.1.100.100"
     proxmox_user: "root@pam"
     proxmox_token_name: "ansible"
-    hostname: "debian-server"
+    hostname: "proxy-server"
     node: "deployone"
     template: "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
     storage: "local-lvm"
@@ -43,8 +43,11 @@
           storage: "{{ storage }}"
           size: "{{ storage_amount | int }}"
         unprivileged: true
+        # This is for docker only
+        features:
+          - nesting=1
         netif:
-          net0: "name=eth0,bridge=vmbr4,ip=dhcp"
+          net0: "name=eth0,bridge=vmbr0,ip=dhcp"
         state: present
 
     - name: Wait for container to start
@@ -73,11 +76,6 @@
         # This splits "192.168.1.50/24" at the "/" and takes the first part
         container_ip: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | first).split('/')[0] }}"
 
-    - name: Signal Website to Register Machine
-      debug:
-        msg: "AUTO_REGISTER: VMID={{ vmid }} IP={{ container_ip }} NAME={{hostname }} TYPE=lxc"
-      delegate_to: localhost
-
     - name: Enable Root Login via SSH
       shell: |
         pct exec {{ vmid }} -- sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
@@ -87,14 +85,16 @@
     - name: Add new LXC to inventory
       add_host:
         name: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | first).inet.split('/')[0] }}"
-        groups: debian_containers
+        groups: proxy_containers
         ansible_user: root
         ansible_ssh_pass: "{{ lxc_password }}"
         container_ip: "{{ container_ip }}"
 
-- name: Install dnsmasq inside the LXC
-  hosts: debian_containers
+- name: Install NPM inside the LXC
+  hosts: proxy_containers
   gather_facts: false
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
   tasks:
     - name: Wait for port 22 to become open
@@ -112,11 +112,35 @@
         sleep: 5
         timeout: 300
 
-    - name: Install dependencies for ttyd
+    - name: Install Docker and docker-compose
       package:
+        update_cache: true
         name:
-          - libuv1
+          - docker.io
+          - docker-compose
         state: present
+
+    - name: Ensure Docker is started
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create directory
+      file:
+        path: /usr/deployone
+        state: directory
+
+    - name: Send docker-compose file
+      template:
+        src: ./proxy-docker
+        dest: /usr/deployone/docker-compose.yml
+
+    - name: Start docker-compose
+      command:
+        cmd: docker-compose up -d
+        chdir: /usr/deployone
+
 
     - name: Download ttyd binary
       get_url:
@@ -124,7 +148,7 @@
         dest: /usr/local/bin/ttyd
         mode: '0755'
 
-    - name: Copy ttyd service file
+    - name: Execute ttyd
       template:
         src: ./ttyd.service
         dest: /etc/systemd/system/ttyd.service

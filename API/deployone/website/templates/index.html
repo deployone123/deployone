@@ -6,9 +6,6 @@
     <title>DeployOne — Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- SweetAlert2 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         // Immediate execution to prevent theme flicker and manage Tab ID
         (function() {
@@ -552,41 +549,26 @@
         /* ===== TTY ===== */
         .tty-container {
             width: 100%;
-            height: 75vh;
-            min-height: 500px;
+            height: calc(100vh - 300px);
             border: 1px solid var(--border2);
             border-radius: 8px;
             background: #000;
             overflow: hidden;
             margin-top: 20px;
+        }
+
+        .tty-titlebar {
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
         }
 
-        #ttyContainer {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100%;
-        }
-
-        .tty-iframe { 
-            flex: 1;
-            width: 100%; 
-            height: 100%; 
-            border: none; 
-            display: none; 
-        }
-        .tty-iframe.active { display: block; }
-
-        .close-tab {
-            margin-left: 8px;
-            opacity: 0.6;
-            transition: opacity 0.2s;
-            cursor: pointer;
-        }
-        .close-tab:hover { opacity: 1; color: var(--error); }
+        .tty-iframe { width: 100%; height: calc(100% - 40px); border: none; }
 
         .tty-placeholder {
             text-align: center;
@@ -658,7 +640,7 @@
         <div class="sidebar-footer">
             <div class="sidebar-username">{{ username }}</div>
             <div class="sidebar-role">Role: <span>{{ user_role }}</span></div>
-            <a href="javascript:void(0)" onclick="logout()" class="logout-link">↪ Logout</a>
+            <a href="{{ url_for('logout') }}" class="logout-link">↪ Logout</a>
         </div>
     </div>
 
@@ -719,8 +701,11 @@
                 </div>
 
                 <div id="ttyWrapper" class="tty-container" style="display: none;">
-                    <div id="ttyTabs" class="log-tabs" style="display: none; border-bottom: 1px solid var(--border2); padding: 0 10px;"></div>
-                    <div id="ttyContainer" style="flex: 1; display: flex; flex-direction: column;"></div>
+                    <div class="tty-titlebar">
+                        <span id="ttyTitle">Terminal</span>
+                        <button onclick="closeTTY()" class="btn-danger btn-sm" style="width: auto; margin-top: 0; padding: 5px 12px;">✕ Close</button>
+                    </div>
+                    <iframe id="ttyIframe" class="tty-iframe"></iframe>
                 </div>
 
                 <div id="ttyPlaceholder" class="tty-placeholder">
@@ -1051,9 +1036,9 @@
                 const data = await response.json();
                 dot.className = 'status-dot ' + (data.status === 'online' ? 'status-online' : 'status-offline');
                 
-                // Add or remove Sync button if offline (Only for Admins)
+                // Add or remove Sync button if offline
                 let syncBtn = document.getElementById(`sync-btn-${machineId}`);
-                if (userRole === 'admin' && data.status === 'offline' && !syncBtn) {
+                if (data.status === 'offline' && !syncBtn) {
                     const card = document.getElementById(`machine-card-${machineId}`);
                     const nameHeader = card.querySelector('.machine-card-name');
                     syncBtn = document.createElement('button');
@@ -1061,9 +1046,9 @@
                     syncBtn.className = 'btn-sm btn-blue';
                     syncBtn.style.cssText = 'float: right; padding: 2px 6px; font-size: 9px; margin-top: 0;';
                     syncBtn.innerHTML = '🔄 Sync IP';
-                    syncBtn.onclick = (e) => { e.stopPropagation(); machinePower(machineId, 'sync'); };
+                    syncBtn.onclick = () => machinePower(machineId, 'sync');
                     nameHeader.appendChild(syncBtn);
-                } else if ((data.status === 'online' || userRole !== 'admin') && syncBtn) {
+                } else if (data.status === 'online' && syncBtn) {
                     syncBtn.remove();
                 }
             } catch (error) {
@@ -1073,18 +1058,7 @@
         }
 
         async function machinePower(machineId, action) {
-            const confirmed = await Swal.fire({
-                title: 'Confirm Action',
-                text: `Are you sure you want to ${action} this machine?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: `Yes, ${action}!`,
-                cancelButtonText: 'Cancel',
-                background: '#0d1117',
-                color: '#c9d1d9',
-                confirmButtonColor: action === 'start' ? '#238636' : (action === 'reboot' ? '#1f6feb' : '#da3633')
-            });
-            if (!confirmed.isConfirmed) return;
+            if (!confirm(`Are you sure you want to ${action} this machine?`)) return;
             try {
                 const response = await fetch('/api/machines/power', {
                     method: 'POST',
@@ -1093,13 +1067,7 @@
                 });
                 const result = await response.json();
                 if (response.ok) {
-                    Swal.fire({
-                        title: 'Initiated!',
-                        text: `Action ${action} initiated successfully! Task ID: ${result.task_id}`,
-                        icon: 'success',
-                        timer: 3000,
-                        showConfirmButton: false
-                    });
+                    alert(`Action ${action} initiated successfully! Task ID: ${result.task_id}`);
                     // Optional: Switch to Ansible view to show logs
                     switchView('ansible', document.querySelector('.menu-item'));
                     createLogTab(`Power ${action}`, result.task_id);
@@ -1112,84 +1080,34 @@
                     const dot = document.getElementById(`status-dot-${machineId}`);
                     if (dot) dot.className = 'status-dot status-checking';
                 } else {
-                    Swal.fire('Error', result.error, 'error');
+                    alert(`Error: ${result.error}`);
                 }
             } catch (error) {
                 console.error("Error triggering machine power action:", error);
-                Swal.fire('Error', 'Failed to initiate power action.', 'error');
+                alert("Failed to initiate power action.");
             }
         }
 
         function connectToMachine(name, ip) {
+            const iframe = document.getElementById('ttyIframe');
             const wrapper = document.getElementById('ttyWrapper');
             const placeholder = document.getElementById('ttyPlaceholder');
-            const tabsContainer = document.getElementById('ttyTabs');
-            const container = document.getElementById('ttyContainer');
-            
-            const tabId = `tty-tab-${ip.replace(/\./g, '-')}`;
-            const existingTab = document.getElementById(tabId);
-            
+            const ttyTitle = document.getElementById('ttyTitle');
+            const url = `/terminal/${ip}/`;
+            ttyTitle.textContent = `Terminal — ${name} (${ip})`;
+            iframe.src = url;
             wrapper.style.display = 'block';
             placeholder.style.display = 'none';
-            tabsContainer.style.display = 'flex';
-            
-            if (existingTab) {
-                switchTTYTab(ip);
-            } else {
-                // Create new tab
-                const tab = document.createElement('div');
-                tab.className = 'log-tab active';
-                tab.id = tabId;
-                tab.innerHTML = `<span>🖥 ${name}</span> <span class="close-tab" onclick="event.stopPropagation(); closeTTYTab('${ip}')">✕</span>`;
-                tab.onclick = () => switchTTYTab(ip);
-                tabsContainer.appendChild(tab);
-                
-                // Create new iframe
-                const iframe = document.createElement('iframe');
-                iframe.id = `tty-iframe-${ip.replace(/\./g, '-')}`;
-                iframe.className = 'tty-iframe active';
-                iframe.src = `/terminal/${ip}/`;
-                container.appendChild(iframe);
-                
-                switchTTYTab(ip);
-            }
             wrapper.scrollIntoView({ behavior: 'smooth' });
         }
 
-        function switchTTYTab(ip) {
-            const safeIp = ip.replace(/\./g, '-');
-            document.querySelectorAll('#ttyTabs .log-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('#ttyContainer .tty-iframe').forEach(c => c.classList.remove('active'));
-            
-            document.getElementById(`tty-tab-${safeIp}`).classList.add('active');
-            document.getElementById(`tty-iframe-${safeIp}`).classList.add('active');
-        }
-
-        function closeTTYTab(ip) {
-            const safeIp = ip.replace(/\./g, '-');
-            const tab = document.getElementById(`tty-tab-${safeIp}`);
-            const iframe = document.getElementById(`tty-iframe-${safeIp}`);
-            
-            const wasActive = tab.classList.contains('active');
-            
-            tab.remove();
-            iframe.remove();
-            
-            const remainingTabs = document.querySelectorAll('#ttyTabs .log-tab');
-            if (remainingTabs.length > 0) {
-                if (wasActive) {
-                    const lastTab = remainingTabs[remainingTabs.length - 1];
-                    const lastIp = lastTab.id.replace('tty-tab-', '').replace(/-/g, '.');
-                    switchTTYTab(lastIp);
-                }
-            } else {
-                const wrapper = document.getElementById('ttyWrapper');
-                const placeholder = document.getElementById('ttyPlaceholder');
-                const tabsContainer = document.getElementById('ttyTabs');
-                wrapper.style.display = 'none';
-                placeholder.style.display = 'block';
-                tabsContainer.style.display = 'none';
-            }
+        function closeTTY() {
+            const iframe = document.getElementById('ttyIframe');
+            const wrapper = document.getElementById('ttyWrapper');
+            const placeholder = document.getElementById('ttyPlaceholder');
+            iframe.src = '';
+            wrapper.style.display = 'none';
+            placeholder.style.display = 'block';
         }
 
         // --- Ansible Logic ---
@@ -1240,7 +1158,7 @@
                         const path = pb.full_path;
                         const name = pb.display_name;
                         const price = pb.price || 10.00;
-                        const isOwned = pb.owned || data.playbooks.some(myPb => myPb.full_path === path);
+                        const isOwned = data.playbooks.some(myPb => myPb.full_path === path && myPb.owned);
                         
                         const item = document.createElement('div');
                         item.className = 'playbook-item';
@@ -1257,39 +1175,29 @@
             } catch (error) { console.error("Error fetching playbooks:", error); playbookList.innerHTML = `<p class="error" style="padding: 10px;">Error: ${error.message}</p>`; }
         }
 
-        async function buyPlaybook(playbookPath) {
-            const confirmed = await Swal.fire({
-                title: 'Confirm Purchase',
-                text: `Do you want to purchase ${playbookPath}? (Simulated Payment)`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, Buy it!',
-                cancelButtonText: 'Cancel',
-                background: '#0d1117',
-                color: '#c9d1d9',
-                confirmButtonColor: '#58a6ff'
-            });
-            if (!confirmed.isConfirmed) return;
+        async function buyPlaybook(path) {
+            if (!confirm(`Do you want to purchase ${path}? (Simulated Payment)`)) return;
             try {
                 const response = await fetch('/api/buy_playbook', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({playbook_path: playbookPath})
+                    body: JSON.stringify({playbook_path: path})
                 });
                 const result = await response.json();
                 if (response.ok) {
-                    Swal.fire('Success!', result.message, 'success');
+                    alert(result.message);
+                    // Update role in UI if it changed
                     if (result.message.includes("PRO")) {
-                        location.reload();
+                        location.reload(); // Hard reload to update user_role from session
                     } else {
                         fetchPlaybooks();
                     }
                 } else {
-                    Swal.fire('Error', result.error, 'error');
+                    alert(result.error);
                 }
             } catch (error) {
                 console.error("Error buying playbook:", error);
-                Swal.fire('Error', 'Purchase failed.', 'error');
+                alert("Purchase failed.");
             }
         }
 
@@ -1334,55 +1242,28 @@
                 const interval = setInterval(async () => {
                     try {
                         const response = await fetch(`/get_log/${taskId}`);
-                        if (!response.ok) {
-                            console.error(`Fetch failed for task ${taskId}: ${response.status}`);
-                            clearInterval(interval);
-                            updateTabStatus(taskId, 'error');
-                            resolve(false);
-                            return;
-                        }
+                        if (!response.ok) return;
                         const result = await response.json();
                         if (result.log) {
                             logElement.textContent = result.log;
                             logElement.scrollTop = logElement.scrollHeight;
-                            
-                            // More robust regex for machine detection
-                            const vmidMatch = result.log.match(/(?:VMID|vmid)[:=]\s*(\d+)/i);
-                            const ipMatch = result.log.match(/(?:IP|Address)[:=]\s*([\d\.]+)/i);
-                            const nameMatch = result.log.match(/(?:NAME|Name|Hostname)[:=]\s*([a-zA-Z0-9\-_]+)/i);
-                            const typeMatch = result.log.match(/(?:TYPE|Type)[:=]\s*(lxc|qemu|vm|container)/i);
-                            
+                            const vmidMatch = result.log.match(/VMID[:=]\s*(\d+)/i);
+                            const ipMatch = result.log.match(/IP[:=]\s*([\d\.]+)/i);
+                            const nameMatch = result.log.match(/NAME[:=]\s*([a-zA-Z0-9\-_]+)/i);
+                            const typeMatch = result.log.match(/TYPE[:=]\s*(lxc|qemu)/i);
                             if (vmidMatch && ipMatch) {
-                                let mType = typeMatch ? typeMatch[1].toLowerCase() : 'lxc';
-                                if (mType === 'vm' || mType === 'qemu') mType = 'qemu';
-                                if (mType === 'container') mType = 'lxc';
-
-                                const payload = { 
-                                    proxmox_vmid: vmidMatch[1], 
-                                    internal_ip: ipMatch[1],
-                                    machine_name: nameMatch ? nameMatch[1] : `VM-${vmidMatch[1]}`,
-                                    machine_type: mType
-                                };
-                                
+                                const payload = { proxmox_vmid: vmidMatch[1], internal_ip: ipMatch[1] };
+                                if (nameMatch) payload.machine_name = nameMatch[1];
+                                if (typeMatch) payload.machine_type = typeMatch[1];
                                 fetch('/api/machines/auto_register', { 
                                     method: 'POST', 
                                     headers: { 'Content-Type': 'application/json' }, 
                                     body: JSON.stringify(payload) 
-                                }).catch(err => console.error("Auto-register failed:", err));
+                                });
                             }
                         }
-                        if (result.finished) { 
-                            clearInterval(interval); 
-                            const status = result.status === 'failed' ? 'error' : 'success';
-                            updateTabStatus(taskId, status); 
-                            resolve(status === 'success'); 
-                        }
-                    } catch (error) { 
-                        console.error(`Error polling logs for ${taskId}:`, error); 
-                        clearInterval(interval); 
-                        updateTabStatus(taskId, 'error'); 
-                        resolve(false); 
-                    }
+                        if (result.finished) { clearInterval(interval); updateTabStatus(taskId, 'success'); resolve(true); }
+                    } catch (error) { console.error(`Error polling logs for ${taskId}:`, error); clearInterval(interval); updateTabStatus(taskId, 'error'); resolve(false); }
                 }, 2000);
             });
         }
@@ -1501,13 +1382,6 @@
         }
 
         fetchPlaybooks();
-        function logout() {
-            const tid = sessionStorage.getItem('active_tab_id');
-            sessionStorage.clear(); // Clear all tab data
-            let logoutUrl = '/logout';
-            if (tid) logoutUrl += '?tid=' + tid;
-            window.location.href = logoutUrl;
-        }
     </script>
 </body>
 </html>

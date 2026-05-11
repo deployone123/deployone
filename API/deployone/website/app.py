@@ -7,13 +7,11 @@ import os
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-goes-here')
-serializer = URLSafeTimedSerializer(app.secret_key)
 
 # Base URL for the Ansible FastAPI application
 ANSIBLE_API_BASE_URL = os.environ.get("ANSIBLE_API_BASE_URL", "http://answeb.deployone.test")
@@ -56,11 +54,6 @@ def ensure_required_tables():
                 UNIQUE KEY user_playbook_trial (user_id, playbook_path)
             ) ENGINE=InnoDB
             ''')
-
-            # Ensure is_verified column exists in users table
-            cursor.execute("SHOW COLUMNS FROM users LIKE 'is_verified'")
-            if not cursor.fetchone():
-                cursor.execute("ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE")
         conn.commit()
     except Exception as e:
         print(f"Error ensuring tables: {e}")
@@ -93,8 +86,8 @@ def add_security_headers(response):
     # Standard security headers
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data:; "
         "connect-src 'self';"
@@ -105,71 +98,6 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     return response
-
-def send_verification_email(email, username):
-    token = serializer.dumps(email, salt='email-confirm')
-    # Using the public URL for the verification link
-    base_url = "https://web.deployone.cat" 
-    verify_url = f"{base_url}{url_for('verify_email', token=token)}"
-    
-    proxy_url = os.environ.get('PROXY_URL')
-    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
-    resend_api_key = os.environ.get('RESEND_API_KEY')
-    
-    if not resend_api_key:
-        app.logger.error("RESEND_API_KEY not found in environment")
-        return False
-
-    try:
-        response = requests.post(
-            "https://api.resend.com/emails",
-            json={
-                "from": "DeployOne <verify@deployone.cat>",
-                "to": [email],
-                "subject": "Verify your DeployOne account",
-                "html": f"""
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <h2 style="color: #5674ff;">Welcome to DeployOne!</h2>
-                        <p>Hi {username},</p>
-                        <p>Thank you for registering. Please verify your account to start deploying your playbooks.</p>
-                        <div style="margin: 30px 0;">
-                            <a href="{verify_url}" style="background: #5674ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                                Verify Account
-                            </a>
-                        </div>
-                        <p style="font-size: 0.8rem; color: #94a3b8;">If you didn't create this account, you can safely ignore this email.</p>
-                    </div>
-                """
-            },
-            headers={
-                "Authorization": f"Bearer {resend_api_key}",
-                "Content-Type": "application/json"
-            },
-            proxies=proxies,
-            timeout=10
-        )
-        response.raise_for_status()
-        return True
-    except Exception as e:
-        app.logger.error(f"Error sending email: {e}")
-        return False
-
-@app.route('/verify/<token>')
-def verify_email(token):
-    try:
-        email = serializer.loads(token, salt='email-confirm', max_age=3600) # 1 hour
-    except (SignatureExpired, BadTimeSignature):
-        return render_template('login.html', error="The verification link is invalid or has expired.")
-    
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("UPDATE users SET is_verified = 1 WHERE email = %s", (email,))
-        conn.commit()
-    finally:
-        conn.close()
-    
-    return render_template('login.html', success="Account verified successfully! You can now log in.")
 
 def login_required(f):
     @functools.wraps(f)
@@ -222,15 +150,15 @@ def login():
                 else:
                     if 'tabs' not in session:
                         session['tabs'] = {}
-                    
-                    # Store identity strictly for THIS tab
-                    session['tabs'][tid] = {
-                        'user_id': user['client_id'],
-                        'username': user['username'],
-                        'role': user['role']
-                    }
-                    session.modified = True
-                    return redirect(url_for('index', tid=tid))
+                
+                # Store identity strictly for THIS tab
+                session['tabs'][tid] = {
+                    'user_id': user['client_id'],
+                    'username': user['username'],
+                    'role': user['role']
+                }
+                session.modified = True
+                return redirect(url_for('index', tid=tid))
             else:
                 error = 'Invalid username or password'
             
@@ -259,12 +187,7 @@ def register():
                         cursor.execute('INSERT INTO users (username, password_hash, email, role, is_verified) VALUES (%s, %s, %s, %s, %s)',
                                     (username, hashed_password, email, 'free', False))
                     conn.commit()
-                    
-                    # Send verification email
-                    if send_verification_email(email, username):
-                        return redirect(url_for('login', registered='success'))
-                    else:
-                        return render_template('register.html', error="Error sending verification email. Please try again later.")
+                    return redirect(url_for('login', registered='success'))
                 except pymysql.err.IntegrityError:
                     error = f'User {username} or email {email} is already registered.'
                 finally:
@@ -274,9 +197,12 @@ def register():
 
 @app.route('/logout')
 def logout():
-    # Clear the entire session for maximum security
-    session.clear()
-    return redirect(url_for('login', reason='logged_out'))
+    tid = request.args.get('tid')
+    if tid and 'tabs' in session:
+        if tid in session['tabs']:
+            del session['tabs'][tid]
+            session.modified = True
+    return redirect(url_for('login'))
 
 @app.route('/')
 @login_required
@@ -564,7 +490,7 @@ def machine_power():
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT proxmox_vmid, owner_id, machine_type FROM machines WHERE machine_id = %s', (machine_id,))
+            cursor.execute('SELECT proxmox_vmid, owner_id FROM machines WHERE machine_id = %s', (machine_id,))
             machine = cursor.fetchone()
     finally:
         conn.close()
@@ -574,9 +500,6 @@ def machine_power():
     
     if g.user['role'] != 'admin' and machine['owner_id'] != g.user['user_id']:
         return jsonify({"error": "Unauthorized"}), 403
-
-    if action == 'sync' and g.user['role'] != 'admin':
-        return jsonify({"error": "Only admins can perform IP synchronization"}), 403
 
     # 2. Trigger Ansible API
     # Path is relative to what the API expects
@@ -592,8 +515,7 @@ def machine_power():
                 "playbook_name": playbook_path,
                 "extra_vars": {
                     "vmid": machine['proxmox_vmid'],
-                    "machine_type": machine['machine_type'],
-                    "power_action": action,
+                    "action": action,
                     "requested_by": g.user['username']
                 }
             },
@@ -623,29 +545,13 @@ def get_machine_status(machine_id):
         return jsonify({"error": "Unauthorized"}), 403
 
     ip = machine['internal_ip']
-    
-    # Robust online check: ping OR TCP port 22 (SSH)
-    is_online = False
-    # 1. Try ping
-    ping_resp = os.system(f"ping -c 1 -W 1 {ip} > /dev/null 2>&1")
-    if ping_resp == 0:
-        is_online = True
-    else:
-        # 2. Try TCP port 22
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        try:
-            result = sock.connect_ex((ip, 22))
-            if result == 0:
-                is_online = True
-        except:
-            pass
-        finally:
-            sock.close()
+    # Check if host is up with a single ping
+    # -c 1 (1 count), -W 1 (1 sec timeout)
+    response = os.system(f"ping -c 1 -W 1 {ip} > /dev/null 2>&1")
     
     return jsonify({
         "machine_id": machine_id,
-        "status": "online" if is_online else "offline"
+        "status": "online" if response == 0 else "offline"
     })
 
 @app.route('/list_playbooks', methods=['GET'])
@@ -683,8 +589,7 @@ def list_playbooks_proxy():
                                     pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
                                     pb_info['trial_used'] = cursor.fetchone() is not None
                                     pb_info['is_free'] = True
-                                    pb_info['owned'] = True # For UI consistency
-                                    pb_info['price'] = 0.00
+                                    pb_info['price'] = 5.00 # Placeholder
                                     free_playbooks.append(pb_info)
                             data['playbooks'] = free_playbooks
                         else: # 'pro' or any paid role
@@ -704,7 +609,6 @@ def list_playbooks_proxy():
                                     pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
                                     pb_info['trial_used'] = cursor.fetchone() is not None
                                     pb_info['is_free'] = True
-                                    pb_info['owned'] = True # Show trials as owned in catalog
                                     filtered.append(pb_info)
                             data['playbooks'] = filtered
 
@@ -758,15 +662,14 @@ def deploy_playbook_proxy():
                         if not cursor.fetchone():
                             return jsonify({"error": f"Trial for {playbook} already used. Please purchase to deploy again."}), 403
                     else:
-                        # Trial available, but we only record it AFTER a successful Ansible call
-                        pass
+                        # Record trial usage
+                        cursor.execute("INSERT INTO free_trial_usage (user_id, playbook_path) VALUES (%s, %s)", (g.user['user_id'], playbook))
                 else:
                     # Not a free playbook, must be purchased
                     cursor.execute("SELECT id FROM purchased_playbooks WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], playbook))
                     if not cursor.fetchone():
                         return jsonify({"error": f"You haven't purchased {playbook}."}), 403
             
-            # Note: We don't commit here for trials anymore
             conn.commit()
     except Exception as e:
         conn.rollback()
@@ -790,18 +693,6 @@ def deploy_playbook_proxy():
                 timeout=10
             )
             response.raise_for_status()
-            
-            # Success! Now record trial usage if it was a trial
-            if 'debian' in playbook.lower() or 'dns' in playbook.lower():
-                try:
-                    conn = get_db_connection()
-                    with conn.cursor() as cursor:
-                        cursor.execute("INSERT IGNORE INTO free_trial_usage (user_id, playbook_path) VALUES (%s, %s)", (g.user['user_id'], playbook))
-                        conn.commit()
-                    conn.close()
-                except Exception as db_err:
-                    app.logger.error(f"Error recording trial usage for {playbook}: {db_err}")
-
             task_ids.append({"playbook": playbook, "task_id": response.json().get('task_id')})
         except Exception as e:
             app.logger.error(f"Error deploying {playbook}: {e}")

@@ -20,4 +20,3 @@ ENV/
 __pycache__/
 *.py[cod]
 *$py.class
-API/logs/

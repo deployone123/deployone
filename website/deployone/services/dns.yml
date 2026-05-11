@@ -1,0 +1,143 @@
+- name: Create LXC container on Proxmox
+  hosts: localhost
+  gather_facts: false
+  vars:
+    proxmox_host: "10.1.100.100"
+    proxmox_user: "root@pam"
+    proxmox_token_name: "ansible"
+    hostname: "dns-server"
+    node: "deployone"
+    template: "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
+    storage: "local-lvm"
+    storage_amount: "4"
+
+  tasks:
+    - name: Load secrets file
+      include_vars:
+        file: vars/secrets.yml
+
+    - name: Get next available VMID via shell (highest >= 1000 + 1)
+      shell: |
+        MAX_ID=$(pvesh get /cluster/resources --type vm --output-format yaml | grep "vmid:" | grep -oE "[0-9]+" | grep -E "^[1-9][0-9]{3,}$" | sort -n | tail -n 1)
+        echo $(( ${MAX_ID:-1000} + 1 ))
+      register: next_vmid_shell
+      delegate_to: "{{ proxmox_host }}"
+
+    - name: Set vmid fact
+      set_fact:
+        vmid: "{{ next_vmid_shell.stdout | trim }}"
+
+    - name: Create Debian 13 LXC
+      community.proxmox.proxmox:
+        vmid: "{{ vmid }}"
+        node: "{{ node }}"
+        api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_token_id: "{{ proxmox_token_name }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        validate_certs: false
+        ostemplate: "{{ template }}"
+        hostname: "{{ hostname }}"
+        password: "{{ lxc_password }}"
+        disk_volume:
+          storage: "{{ storage }}"
+          size: "{{ storage_amount | int }}"
+        unprivileged: true
+        netif:
+          net0: "name=eth0,bridge=vmbr0,ip=dhcp"
+        state: present
+
+    - name: Wait for container to start
+      community.proxmox.proxmox:
+        vmid: "{{ vmid }}"
+        node: "{{ node }}"
+        api_host: "{{ proxmox_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_token_id: "{{ proxmox_token_name }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        validate_certs: false
+        hostname: "{{ hostname }}"
+        state: started
+
+    - name: Get LXC IP address
+      shell: "pvesh get /nodes/{{ node }}/lxc/{{ vmid }}/interfaces --output-format json"
+      register: lxc_interfaces
+      retries: 20
+      delay: 5
+      # We ensure 'inet' exists and isn't empty
+      until: "(lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | first | default('')) != ''"
+      delegate_to: "{{ proxmox_host }}"
+
+    - name: Set Clean IP Fact
+      set_fact:
+        # This splits "192.168.1.50/24" at the "/" and takes the first part
+        container_ip: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | map(attribute='inet') | first).split('/')[0] }}"
+
+    - name: Enable Root Login via SSH
+      shell: |
+        pct exec {{ vmid }} -- sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+        pct exec {{ vmid }} -- systemctl restart ssh
+      delegate_to: "{{ proxmox_host }}"
+
+    - name: Add new LXC to inventory
+      add_host:
+        name: "{{ (lxc_interfaces.stdout | from_json | selectattr('name', 'equalto', 'eth0') | first).inet.split('/')[0] }}"
+        groups: dns_containers
+        ansible_user: root
+        ansible_ssh_pass: "{{ lxc_password }}"
+        container_ip: "{{ container_ip }}"
+
+- name: Install dnsmasq inside the LXC
+  hosts: dns_containers
+  gather_facts: false
+  
+  tasks:
+    - name: Wait for port 22 to become open
+      wait_for:
+        host: "{{ container_ip }}"
+        port: 22
+        delay: 5
+        timeout: 300
+        state: started
+      delegate_to: localhost
+
+    - name: Verify SSH connection is functional
+      wait_for_connection:
+           connect_timeout: 10
+           sleep: 5
+           timeout: 300
+
+    - name: Installing dnsmasq
+      package:
+        name: dnsmasq
+        state: present
+        update_cache: true
+
+    - name: Ensure it's started and enabled
+      service:
+        name: dnsmasq
+        state: started
+        enabled: true
+
+    - name: Send config file
+      template:
+        src: ./dns.conf
+        dest: /etc/dnsmasq.d/dns.conf
+    
+    - name: Download ttyd binary
+      get_url:
+        url: https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
+        dest: /usr/local/bin/ttyd
+        mode: '0755'
+    
+    - name: Execute ttyd
+      template:
+        src: ./ttyd.service
+        dest: /etc/systemd/system/ttyd.service
+
+    - name: Start and enable ttyd
+      systemd:
+        name: ttyd
+        state: started
+        enabled: yes
+        daemon_reload: yes
