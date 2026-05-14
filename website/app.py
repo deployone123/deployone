@@ -743,10 +743,14 @@ def list_playbooks_proxy():
         if 'playbooks' in data:
             all_playbooks = []
             for pb in data['playbooks']:
-                name = pb['display_name'] if isinstance(pb, dict) else pb
-                path = pb['full_path'] if isinstance(pb, dict) else pb
+                if isinstance(pb, str):
+                    pb_info = {"display_name": pb.split('/')[-1].replace('.yml', ''), "full_path": pb}
+                else:
+                    pb_info = pb.copy()
+                
+                path = pb_info['full_path']
                 if "power/" not in path and "_machine.yml" not in path:
-                    all_playbooks.append(pb)
+                    all_playbooks.append(pb_info)
             
             # Now filter based on user role and purchases
             try:
@@ -758,12 +762,11 @@ def list_playbooks_proxy():
                         elif g.user['role'] in ['free', 'user']:
                             # Free users (and legacy 'user' role) can only see debian and dns (placeholders for free trial)
                             free_playbooks = []
-                            for pb in all_playbooks:
-                                path = pb['full_path'] if isinstance(pb, dict) else pb
+                            for pb_info in all_playbooks:
+                                path = pb_info['full_path']
                                 if 'debian' in path.lower() or 'dns' in path.lower():
                                     # Check if already used
                                     cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
-                                    pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
                                     pb_info['trial_used'] = cursor.fetchone() is not None
                                     pb_info['is_free'] = True
                                     pb_info['owned'] = True # For UI consistency
@@ -775,28 +778,27 @@ def list_playbooks_proxy():
                             purchased = [p['playbook_path'] for p in cursor.fetchall()]
                             
                             filtered = []
-                            for pb in all_playbooks:
-                                path = pb['full_path'] if isinstance(pb, dict) else pb
+                            for pb_info in all_playbooks:
+                                path = pb_info['full_path']
                                 if path in purchased:
-                                    pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
                                     pb_info['owned'] = True
                                     filtered.append(pb_info)
                                 elif 'debian' in path.lower() or 'dns' in path.lower():
-                                    # Still show free trials if they haven't used them
+                                    # For PRO users, free playbooks are ALWAYS shown and usable
                                     cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
-                                    pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
-                                    pb_info['trial_used'] = cursor.fetchone() is not None
+                                    pb_info['trial_used'] = False # Bypass for PRO
                                     pb_info['is_free'] = True
-                                    pb_info['owned'] = True # Show trials as owned in catalog
+                                    pb_info['owned'] = True 
                                     filtered.append(pb_info)
                             data['playbooks'] = filtered
 
-                        # For UI to show catalog (Optional: separate endpoint or include all with prices)
+                        # For UI to show catalog
                         catalog = []
-                        for pb in all_playbooks:
-                            path = pb['full_path'] if isinstance(pb, dict) else pb
-                            pb_info = pb if isinstance(pb, dict) else {"display_name": path, "full_path": path}
-                            pb_info['price'] = 49.99
+                        for pb_info in all_playbooks:
+                            path = pb_info['full_path']
+                            # Correctly set price for catalog
+                            is_free = 'debian' in path.lower() or 'dns' in path.lower()
+                            pb_info['price'] = 0.00 if is_free else 49.99
                             catalog.append(pb_info)
                         data['catalog'] = catalog
                 finally:
