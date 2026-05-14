@@ -752,63 +752,56 @@ def list_playbooks_proxy():
                 if "power/" not in path and "_machine.yml" not in path:
                     all_playbooks.append(pb_info)
             
-            # Now filter based on user role and purchases
             try:
                 conn = get_db_connection()
                 try:
                     with conn.cursor() as cursor:
-                        if g.user['role'] == 'admin':
-                            data['playbooks'] = all_playbooks
-                        elif g.user['role'] in ['free', 'user']:
-                            # Free users (and legacy 'user' role) can only see debian and dns (placeholders for free trial)
-                            free_playbooks = []
-                            for pb_info in all_playbooks:
-                                path = pb_info['full_path']
-                                if 'debian' in path.lower() or 'dns' in path.lower():
-                                    # Check if already used
-                                    cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
-                                    pb_info['trial_used'] = cursor.fetchone() is not None
-                                    pb_info['is_free'] = True
-                                    pb_info['owned'] = True # For UI consistency
-                                    pb_info['price'] = 0.00
-                                    free_playbooks.append(pb_info)
-                            data['playbooks'] = free_playbooks
-                        else: # 'pro' or any paid role
-                            cursor.execute("SELECT playbook_path FROM purchased_playbooks WHERE user_id = %s", (g.user['user_id'],))
-                            purchased = [p['playbook_path'] for p in cursor.fetchall()]
-                            
-                            filtered = []
-                            for pb_info in all_playbooks:
-                                path = pb_info['full_path']
-                                if path in purchased:
-                                    pb_info['owned'] = True
-                                    filtered.append(pb_info)
-                                elif 'debian' in path.lower() or 'dns' in path.lower():
-                                    # For PRO users, free playbooks are ALWAYS shown and usable
-                                    cursor.execute("SELECT id FROM free_trial_usage WHERE user_id = %s AND playbook_path = %s", (g.user['user_id'], path))
-                                    pb_info['trial_used'] = False # Bypass for PRO
-                                    pb_info['is_free'] = True
-                                    pb_info['owned'] = True 
-                                    filtered.append(pb_info)
-                            data['playbooks'] = filtered
-
-                        # For UI to show catalog
+                        user_id = g.user['user_id']
+                        role = g.user['role']
+                        
+                        cursor.execute("SELECT playbook_path FROM purchased_playbooks WHERE user_id = %s", (user_id,))
+                        purchased = [p['playbook_path'] for p in cursor.fetchall()]
+                        
+                        cursor.execute("SELECT playbook_path FROM free_trial_usage WHERE user_id = %s", (user_id,))
+                        trials_used = [p['playbook_path'] for p in cursor.fetchall()]
+                        
+                        my_playbooks = []
                         catalog = []
-                        for pb_info in all_playbooks:
-                            path = pb_info['full_path']
-                            # Correctly set price for catalog
-                            is_free = 'debian' in path.lower() or 'dns' in path.lower()
-                            pb_info['price'] = 0.00 if is_free else 49.99
-                            catalog.append(pb_info)
+                        
+                        for pb in all_playbooks:
+                            path = pb['full_path']
+                            pb['is_free'] = 'debian' in path.lower() or 'dns' in path.lower()
+                            pb['owned'] = path in purchased
+                            pb['trial_used'] = path in trials_used
+                            pb['price'] = 0.00 if pb['is_free'] else 49.99
+                            
+                            # Decision logic for My Playbooks vs Store
+                            if role == 'admin':
+                                my_playbooks.append(pb)
+                            elif pb['owned']:
+                                my_playbooks.append(pb)
+                            elif pb['is_free']:
+                                if role == 'pro':
+                                    # PRO users see them as "bought" (unlocked)
+                                    pb['owned'] = True
+                                    pb['trial_used'] = False
+                                # Everyone gets free playbooks in their list
+                                my_playbooks.append(pb)
+                            
+                            # Catalog should show anything NOT owned
+                            # For new users, free playbooks will show in the store as "Free"
+                            if not pb['owned']:
+                                catalog.append(pb)
+                        
+                        data['playbooks'] = my_playbooks
                         data['catalog'] = catalog
                 finally:
                     conn.close()
             except Exception as db_err:
                 app.logger.error(f"Database error in list_playbooks: {db_err}")
-                # Fallback: if database fails, only show NOTHING for my playbooks to be safe
                 data['playbooks'] = []
                 data['catalog'] = []
-                data['error'] = "Database error. Please contact admin."
+                data['error'] = f"Database error: {db_err}"
             
         return jsonify(data)
     except requests.exceptions.RequestException as e:

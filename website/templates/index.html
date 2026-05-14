@@ -1456,22 +1456,62 @@
                     data.catalog.forEach((pb) => {
                         const path = pb.full_path;
                         const name = pb.display_name;
-                        const price = pb.price || 50.00;
-                        const isOwned = pb.owned || data.playbooks.some(myPb => myPb.full_path === path);
+                        const price = pb.price;
+                        const isFree = pb.is_free;
+                        const isOwned = pb.owned;
 
                         const item = document.createElement('div');
                         item.className = 'playbook-item';
                         item.style.justifyContent = 'space-between';
+                        
+                        let priceTag = `<span style="color:var(--accent);">${price.toFixed(2)}€</span>`;
+                        let actionButton = `<button onclick="buyPlaybook('${path}')" class="btn-sm btn-blue" style="margin:0;width:auto;">Buy</button>`;
+                        
+                        if (isFree) {
+                            priceTag = `<span style="color:var(--success); font-weight: 600;">FREE</span>`;
+                            actionButton = `<button onclick="claimFreeTrial('${path}')" class="btn-sm btn-green" style="margin:0;width:auto;">Try for Free</button>`;
+                        }
+
+                        if (isOwned) {
+                            actionButton = `<span style="color:var(--success);font-size:11px;">Owned</span>`;
+                        }
+
                         item.innerHTML = `
-                            <div style="font-size: 12px;">${name} <span style="color:var(--accent);">${price.toFixed(2)}€</span></div>
-                            ${isOwned ? '<span style="color:var(--success);font-size:11px;">Owned</span>' :
-                                `<button onclick="buyPlaybook('${path}')" class="btn-sm btn-blue" style="margin:0;width:auto;">Buy</button>`}
+                            <div style="font-size: 12px;">${name} ${priceTag}</div>
+                            ${actionButton}
                         `;
                         catalogList.appendChild(item);
                     });
                 }
 
             } catch (error) { console.error("Error fetching playbooks:", error); playbookList.innerHTML = `<p class="error" style="padding: 10px;">Error: ${error.message}</p>`; }
+        }
+
+        async function claimFreeTrial(playbookPath) {
+            const confirmed = await Swal.fire({
+                title: 'Start Free Trial?',
+                text: `You are about to start your one-time free trial for ${playbookPath}.`,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#22c55e',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Start Now',
+                background: '#1e293b',
+                color: '#f8fafc'
+            });
+
+            if (confirmed.isConfirmed) {
+                Swal.fire({
+                    title: 'Trial Activated!',
+                    text: 'You can now select this playbook from "My Playbooks" to deploy it.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    background: '#1e293b',
+                    color: '#f8fafc'
+                });
+                fetchPlaybooks(); // Refresh UI
+            }
         }
 
         async function buyPlaybook(playbookPath) {
