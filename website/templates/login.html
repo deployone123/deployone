@@ -187,7 +187,7 @@
             <div class="error-box">⚠ {{ error }}</div>
         {% endif %}
         
-        <form method="POST" id="loginForm">
+        <form method="POST" action="{{ url_for('login') }}" id="loginForm">
             <input type="hidden" name="tid" id="tidInput">
             <div class="form-group">
                 <label for="username" data-i18n="login_user">Username or Email</label>
