@@ -154,6 +154,41 @@ def send_verification_email(email, username):
         app.logger.error(f"Error sending email: {e}")
         return False
 
+def send_reset_email(email, username, reset_url):
+    try:
+        response = requests.post(
+            "https://api.resend.com/emails",
+            json={
+                "from": "DeployOne <onboarding@resend.dev>",
+                "to": email,
+                "subject": "Reset your DeployOne Password",
+                "html": f"""
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                        <h2 style="color: #5674ff;">Password Reset Request</h2>
+                        <p>Hi {username},</p>
+                        <p>We received a request to reset your password. Click the button below to choose a new one:</p>
+                        <div style="margin: 30px 0;">
+                            <a href="{reset_url}" style="background: #5674ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                                Reset Password
+                            </a>
+                        </div>
+                        <p style="font-size: 0.8rem; color: #94a3b8;">This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+                    </div>
+                """
+            },
+            headers={
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json"
+            },
+            proxies=proxies,
+            timeout=10
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        app.logger.error(f"Error sending reset email: {e}")
+        return False
+
 @app.route('/verify/<token>')
 def verify_email(token):
     try:
@@ -271,6 +306,54 @@ def register():
                     conn.close()
             
     return render_template('register.html', error=error)
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT username FROM users WHERE email = %s", (email,))
+                user = cursor.fetchone()
+        finally:
+            conn.close()
+        
+        if user:
+            token = serializer.dumps(email, salt='password-reset')
+            reset_url = url_for('reset_password', token=token, _external=True)
+            # Reusing the email sender logic (assuming the function is flexible)
+            # Since I don't see a 'send_reset_email' function, I'll use the generic logic or just log it for now
+            # Actually, I'll create a send_reset_email function if it doesn't exist
+            send_reset_email(email, user['username'], reset_url)
+            
+        return render_template('login.html', success="If that email exists in our records, we've sent a reset link.")
+    return render_template('forgot_password.html')
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        email = serializer.loads(token, salt='password-reset', max_age=3600)
+    except:
+        return render_template('login.html', error="The reset link is invalid or has expired.")
+    
+    if request.method == 'POST':
+        password = request.form.get('password')
+        is_valid, msg = validate_password(password)
+        if not is_valid:
+            return render_template('reset_password.html', error=msg, token=token)
+            
+        hashed_password = generate_password_hash(password)
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("UPDATE users SET password_hash = %s WHERE email = %s", (hashed_password, email))
+            conn.commit()
+        finally:
+            conn.close()
+        return render_template('login.html', success="Password updated successfully!")
+        
+    return render_template('reset_password.html', token=token)
 
 @app.route('/logout')
 def logout():
