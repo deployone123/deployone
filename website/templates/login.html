@@ -197,6 +197,9 @@
                 <label for="password" data-i18n="login_pass">Password</label>
                 <input type="password" id="password" name="password" placeholder="••••••••••" required>
             </div>
+            <div class="footer-link">
+                <a href="{{ url_for('forgot_password') }}" style="font-size: 0.8rem; opacity: 0.7;" data-i18n="login_forgot">Forgot password?</a>
+            </div>
             <button type="submit" class="btn" data-i18n="login_btn">→ Sign In</button>
         </form>
         
@@ -214,7 +217,8 @@
                 login_pass: "Contrasenya",
                 login_btn: "→ Iniciar sessió",
                 login_no_acc: "No tens compte?",
-                login_reg: "Registra't aquí"
+                login_reg: "Registra't aquí",
+                login_forgot: "Has oblidat la contrasenya?"
             },
             es: {
                 login_title: "Bienvenido de nuevo",
@@ -222,7 +226,8 @@
                 login_pass: "Contraseña",
                 login_btn: "→ Iniciar sesión",
                 login_no_acc: "¿No tienes cuenta?",
-                login_reg: "Regístrate aquí"
+                login_reg: "Regístrate aquí",
+                login_forgot: "¿Has olvidado tu contraseña?"
             },
             en: {
                 login_title: "Welcome back",
@@ -230,7 +235,8 @@
                 login_pass: "Password",
                 login_btn: "→ Sign In",
                 login_no_acc: "No account?",
-                login_reg: "Register here"
+                login_reg: "Register here",
+                login_forgot: "Forgot password?"
             }
         };
 
