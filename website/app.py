@@ -106,12 +106,7 @@ def add_security_headers(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     return response
 
-def send_verification_email(email, username):
-    token = serializer.dumps(email, salt='email-confirm')
-    # Using the public URL for the verification link
-    base_url = "https://web.deployone.cat" 
-    verify_url = f"{base_url}{url_for('verify_email', token=token)}"
-    
+def send_resend_email(to_email, subject, html_content):
     proxy_url = os.environ.get('PROXY_URL')
     proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
     resend_api_key = os.environ.get('RESEND_API_KEY')
@@ -120,39 +115,70 @@ def send_verification_email(email, username):
         app.logger.error("RESEND_API_KEY not found in environment")
         return False
 
+    payload = {
+        "from": "DeployOne <verify@deployone.cat>",
+        "to": [to_email],
+        "subject": subject,
+        "html": html_content
+    }
+    headers = {
+        "Authorization": f"Bearer {resend_api_key}",
+        "Content-Type": "application/json"
+    }
+
+    # 1. Try DIRECT first
     try:
+        app.logger.info(f"Attempting direct Resend email to {to_email}...")
         response = requests.post(
             "https://api.resend.com/emails",
-            json={
-                "from": "DeployOne <verify@deployone.cat>",
-                "to": [email],
-                "subject": "Verify your DeployOne account",
-                "html": f"""
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <h2 style="color: #5674ff;">Welcome to DeployOne!</h2>
-                        <p>Hi {username},</p>
-                        <p>Thank you for registering. Please verify your account to start deploying your playbooks.</p>
-                        <div style="margin: 30px 0;">
-                            <a href="{verify_url}" style="background: #5674ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                                Verify Account
-                            </a>
-                        </div>
-                        <p style="font-size: 0.8rem; color: #94a3b8;">If you didn't create this account, you can safely ignore this email.</p>
-                    </div>
-                """
-            },
-            headers={
-                "Authorization": f"Bearer {resend_api_key}",
-                "Content-Type": "application/json"
-            },
-            proxies=proxies,
-            timeout=10
+            json=payload,
+            headers=headers,
+            timeout=5
         )
         response.raise_for_status()
+        app.logger.info("Direct Resend email sent successfully!")
         return True
-    except Exception as e:
-        app.logger.error(f"Error sending email: {e}")
-        return False
+    except Exception as e_direct:
+        app.logger.warning(f"Direct email sending failed: {e_direct}. Retrying WITH proxy...")
+        
+        # 2. Try WITH proxy as fallback
+        if not proxies:
+            app.logger.error("No proxy configured for fallback.")
+            return False
+        try:
+            response = requests.post(
+                "https://api.resend.com/emails",
+                json=payload,
+                headers=headers,
+                proxies=proxies,
+                timeout=10
+            )
+            response.raise_for_status()
+            app.logger.info("Resend email sent successfully via proxy!")
+            return True
+        except Exception as e_proxy:
+            app.logger.error(f"Proxy email sending also failed: {e_proxy}")
+            return False
+
+def send_verification_email(email, username):
+    token = serializer.dumps(email, salt='email-confirm')
+    base_url = "https://web.deployone.cat" 
+    verify_url = f"{base_url}{url_for('verify_email', token=token)}"
+    
+    html_content = f"""
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+            <h2 style="color: #5674ff;">Welcome to DeployOne!</h2>
+            <p>Hi {username},</p>
+            <p>Thank you for registering. Please verify your account to start deploying your playbooks.</p>
+            <div style="margin: 30px 0;">
+                <a href="{verify_url}" style="background: #5674ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                    Verify Account
+                </a>
+            </div>
+            <p style="font-size: 0.8rem; color: #94a3b8;">If you didn't create this account, you can safely ignore this email.</p>
+        </div>
+    """
+    return send_resend_email(email, "Verify your DeployOne account", html_content)
 
 
 
@@ -174,47 +200,20 @@ def verify_email(token):
     return render_template('login.html', success="Account verified successfully! You can now log in.")
 
 def send_reset_email(email, username, reset_url):
-    proxy_url = os.environ.get('PROXY_URL')
-    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
-    resend_api_key = os.environ.get('RESEND_API_KEY')
-    
-    if not resend_api_key:
-        app.logger.error("RESEND_API_KEY not found in environment")
-        return False
-
-    try:
-        response = requests.post(
-            "https://api.resend.com/emails",
-            json={
-                "from": "DeployOne <verify@deployone.cat>",
-                "to": [email],
-                "subject": "Reset your DeployOne Password",
-                "html": f"""
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <h2 style="color: #5674ff;">Password Reset Request</h2>
-                        <p>Hi {username},</p>
-                        <p>We received a request to reset your password. Click the button below to choose a new one:</p>
-                        <div style="margin: 30px 0;">
-                            <a href="{reset_url}" style="background: #5674ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                                Reset Password
-                            </a>
-                        </div>
-                        <p style="font-size: 0.8rem; color: #94a3b8;">This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
-                    </div>
-                """
-            },
-            headers={
-                "Authorization": f"Bearer {resend_api_key}",
-                "Content-Type": "application/json"
-            },
-            proxies=proxies,
-            timeout=10
-        )
-        response.raise_for_status()
-        return True
-    except Exception as e:
-        app.logger.error(f"Error sending reset email: {e}")
-        return False
+    html_content = f"""
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+            <h2 style="color: #5674ff;">Password Reset Request</h2>
+            <p>Hi {username},</p>
+            <p>We received a request to reset your password. Click the button below to choose a new one:</p>
+            <div style="margin: 30px 0;">
+                <a href="{reset_url}" style="background: #5674ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                    Reset Password
+                </a>
+            </div>
+            <p style="font-size: 0.8rem; color: #94a3b8;">This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+        </div>
+    """
+    return send_resend_email(email, "Reset your DeployOne Password", html_content)
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
