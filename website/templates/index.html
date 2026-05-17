@@ -261,7 +261,8 @@
             cursor: pointer;
             border-radius: 10px;
             border: 1px solid var(--border);
-            background: var(--surface2);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
             color: var(--text);
             width: 38px;
             height: 38px;
@@ -273,7 +274,7 @@
 
         .theme-toggle:hover {
             border-color: var(--accent);
-            background: var(--accent-dim);
+            background: rgba(86, 116, 255, 0.1);
         }
 
         .theme-toggle svg {
@@ -296,10 +297,11 @@
         .lang-switcher {
             display: flex;
             gap: 4px;
-            background: var(--surface2);
+            background: rgba(255, 255, 255, 0.03);
             padding: 4px;
             border-radius: 10px;
             border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
         }
 
         .lang-btn {

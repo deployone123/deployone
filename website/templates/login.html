@@ -254,7 +254,10 @@
         <p class="subtitle">// AUTHENTICATE TO CONTINUE</p>
         
         {% if error %}
-            <div class="error-box">⚠ {{ error }}</div>
+            <div class="error-box" style="color: #fca5a5; padding: 1rem; border-radius: 12px; background: rgba(252, 165, 165, 0.1); margin-bottom: 2rem; animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;">⚠ {{ error }}</div>
+        {% endif %}
+        {% if success %}
+            <div class="success-box" style="color: #86efac; padding: 1rem; border-radius: 12px; background: rgba(134, 239, 172, 0.1); margin-bottom: 2rem;">✓ {{ success }}</div>
         {% endif %}
         
         <form method="POST" action="{{ url_for('login') }}" id="loginForm">
