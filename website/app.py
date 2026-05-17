@@ -395,53 +395,6 @@ def register():
             
     return render_template('register.html', error=error)
 
-@app.route('/forgot_password', methods=['GET', 'POST'])
-def forgot_password():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT username FROM users WHERE email = %s", (email,))
-                user = cursor.fetchone()
-        finally:
-            conn.close()
-        
-        if user:
-            token = serializer.dumps(email, salt='password-reset')
-            reset_url = url_for('reset_password', token=token, _external=True)
-            # Reusing the email sender logic (assuming the function is flexible)
-            # Since I don't see a 'send_reset_email' function, I'll use the generic logic or just log it for now
-            # Actually, I'll create a send_reset_email function if it doesn't exist
-            send_reset_email(email, user['username'], reset_url)
-            
-        return render_template('login.html', success="If that email exists in our records, we've sent a reset link.")
-    return render_template('forgot_password.html')
-
-@app.route('/reset_password/<token>', methods=['GET', 'POST'])
-def reset_password(token):
-    try:
-        email = serializer.loads(token, salt='password-reset', max_age=3600)
-    except:
-        return render_template('login.html', error="The reset link is invalid or has expired.")
-    
-    if request.method == 'POST':
-        password = request.form.get('password')
-        is_valid, msg = validate_password(password)
-        if not is_valid:
-            return render_template('reset_password.html', error=msg, token=token)
-            
-        hashed_password = generate_password_hash(password)
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("UPDATE users SET password_hash = %s WHERE email = %s", (hashed_password, email))
-            conn.commit()
-        finally:
-            conn.close()
-        return render_template('login.html', success="Password updated successfully!")
-        
-    return render_template('reset_password.html', token=token)
 
 @app.route('/logout')
 def logout():
