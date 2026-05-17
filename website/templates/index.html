@@ -276,6 +276,11 @@
             background: var(--accent-dim);
         }
 
+        .theme-toggle svg {
+            width: 18px;
+            height: 18px;
+        }
+
         .sun-icon {
             display: none;
         }
@@ -863,17 +868,15 @@
             <h2 id="view-title" data-i18n="top_bar_title">Ansible Playbook Deployer</h2>
             <div class="top-bar-controls">
                 <div class="lang-switcher">
-                    <button class="lang-btn active" data-switch-lang="ca">CA</button>
+                    <button class="lang-btn" data-switch-lang="ca">CA</button>
                     <button class="lang-btn" data-switch-lang="es">ES</button>
-                    <button class="lang-btn" data-switch-lang="en">EN</button>
+                    <button class="lang-btn active" data-switch-lang="en">EN</button>
                 </div>
-                <button onclick="toggleTheme()" class="theme-toggle" title="Toggle Light/Dark Mode">
-                    <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
+                <button onclick="toggleTheme()" class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle Light/Dark Mode">
+                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                     </svg>
-                    <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
+                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="5"></circle>
                         <line x1="12" y1="1" x2="12" y2="3"></line>
                         <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -1463,10 +1466,8 @@
                         const item = document.createElement('div');
                         item.className = 'playbook-item';
                         item.style.justifyContent = 'space-between';
-                        
                         let priceTag = `<span style="color:var(--accent);">${price.toFixed(2)}€</span>`;
                         let actionButton = `<button onclick="buyPlaybook('${path}')" class="btn-sm btn-blue" style="margin:0;width:auto;">Buy</button>`;
-                        
                         if (isFree) {
                             priceTag = `<span style="color:var(--success); font-weight: 600;">FREE</span>`;
                             actionButton = `<button onclick="claimFreeTrial('${path}')" class="btn-sm btn-green" style="margin:0;width:auto;">Try for Free</button>`;

@@ -206,6 +206,94 @@ def verify_email(token):
     
     return render_template('login.html', success="Account verified successfully! You can now log in.")
 
+def send_reset_email(email, username, reset_url):
+    proxy_url = os.environ.get('PROXY_URL')
+    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+    resend_api_key = os.environ.get('RESEND_API_KEY')
+    
+    if not resend_api_key:
+        app.logger.error("RESEND_API_KEY not found in environment")
+        return False
+
+    try:
+        response = requests.post(
+            "https://api.resend.com/emails",
+            json={
+                "from": "DeployOne <verify@deployone.cat>",
+                "to": [email],
+                "subject": "Reset your DeployOne Password",
+                "html": f"""
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                        <h2 style="color: #5674ff;">Password Reset Request</h2>
+                        <p>Hi {username},</p>
+                        <p>We received a request to reset your password. Click the button below to choose a new one:</p>
+                        <div style="margin: 30px 0;">
+                            <a href="{reset_url}" style="background: #5674ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                                Reset Password
+                            </a>
+                        </div>
+                        <p style="font-size: 0.8rem; color: #94a3b8;">This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+                    </div>
+                """
+            },
+            headers={
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json"
+            },
+            proxies=proxies,
+            timeout=10
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        app.logger.error(f"Error sending reset email: {e}")
+        return False
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT username FROM users WHERE email = %s", (email,))
+                user = cursor.fetchone()
+        finally:
+            conn.close()
+        
+        if user:
+            token = serializer.dumps(email, salt='password-reset')
+            reset_url = url_for('reset_password', token=token, _external=True)
+            send_reset_email(email, user['username'], reset_url)
+            
+        return render_template('login.html', success="If that email exists in our records, we've sent a reset link.")
+    return render_template('forgot_password.html')
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        email = serializer.loads(token, salt='password-reset', max_age=3600)
+    except:
+        return render_template('login.html', error="The reset link is invalid or has expired.")
+    
+    if request.method == 'POST':
+        password = request.form.get('password')
+        is_valid, msg = validate_password(password)
+        if not is_valid:
+            return render_template('reset_password.html', error=msg, token=token)
+            
+        hashed_password = generate_password_hash(password)
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("UPDATE users SET password_hash = %s WHERE email = %s", (hashed_password, email))
+            conn.commit()
+        finally:
+            conn.close()
+        return render_template('login.html', success="Password updated successfully!")
+        
+    return render_template('reset_password.html', token=token)
+
 def login_required(f):
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
@@ -756,43 +844,49 @@ def list_playbooks_proxy():
                 conn = get_db_connection()
                 try:
                     with conn.cursor() as cursor:
-                        user_id = g.user['user_id']
-                        role = g.user['role']
-                        
-                        cursor.execute("SELECT playbook_path FROM purchased_playbooks WHERE user_id = %s", (user_id,))
+                        # Fetch purchased playbooks for the user
+                        cursor.execute("SELECT playbook_path FROM purchased_playbooks WHERE user_id = %s", (g.user['user_id'],))
                         purchased = [p['playbook_path'] for p in cursor.fetchall()]
                         
-                        cursor.execute("SELECT playbook_path FROM free_trial_usage WHERE user_id = %s", (user_id,))
+                        # Fetch free trial usage for the user
+                        cursor.execute("SELECT playbook_path FROM free_trial_usage WHERE user_id = %s", (g.user['user_id'],))
                         trials_used = [p['playbook_path'] for p in cursor.fetchall()]
                         
-                        my_playbooks = []
                         catalog = []
+                        my_playbooks = []
                         
                         for pb in all_playbooks:
-                            path = pb['full_path']
-                            pb['is_free'] = 'debian' in path.lower() or 'dns' in path.lower()
-                            pb['owned'] = path in purchased
-                            pb['trial_used'] = path in trials_used
-                            pb['price'] = 0.00 if pb['is_free'] else 49.99
+                            path = pb['full_path'] if isinstance(pb, dict) else pb
+                            name = pb['display_name'] if isinstance(pb, dict) else path
+                            pb_info = {"display_name": name, "full_path": path}
                             
-                            # Decision logic for My Playbooks vs Store
-                            if role == 'admin':
-                                my_playbooks.append(pb)
-                            elif pb['owned']:
-                                my_playbooks.append(pb)
-                            elif pb['is_free']:
-                                if role == 'pro':
-                                    # PRO users see them as "bought" (unlocked)
-                                    pb['owned'] = True
-                                    pb['trial_used'] = False
-                                # Everyone gets free playbooks in their list
-                                my_playbooks.append(pb)
+                            is_trial_pb = ('debian' in path.lower() or 'dns' in path.lower())
                             
-                            # Catalog should show anything NOT owned
-                            # For new users, free playbooks will show in the store as "Free"
-                            if not pb['owned']:
-                                catalog.append(pb)
-                        
+                            # Determine Ownership
+                            if g.user['role'] in ['admin', 'pro']:
+                                pb_info['owned'] = True
+                            else:
+                                pb_info['owned'] = (path in purchased)
+                                
+                            # Determine Free Trial status
+                            if is_trial_pb and not pb_info['owned'] and path not in trials_used:
+                                pb_info['is_free'] = True
+                                pb_info['price'] = 0.00
+                                pb_info['trial_used'] = False
+                            else:
+                                pb_info['is_free'] = False
+                                pb_info['price'] = 49.99
+                                pb_info['trial_used'] = (path in trials_used and not pb_info['owned'])
+                                
+                            # The catalog gets everything
+                            catalog.append(pb_info.copy())
+                            
+                            # "My Playbooks" gets what you own OR what you can try for free
+                            if pb_info['owned'] or pb_info['is_free']:
+                                # If they own it, make sure is_free is false for UI
+                                if pb_info['owned']:
+                                    pb_info['is_free'] = False
+                                my_playbooks.append(pb_info)
                         data['playbooks'] = my_playbooks
                         data['catalog'] = catalog
                 finally:
