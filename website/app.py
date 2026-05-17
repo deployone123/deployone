@@ -154,40 +154,7 @@ def send_verification_email(email, username):
         app.logger.error(f"Error sending email: {e}")
         return False
 
-def send_reset_email(email, username, reset_url):
-    try:
-        response = requests.post(
-            "https://api.resend.com/emails",
-            json={
-                "from": "DeployOne <onboarding@resend.dev>",
-                "to": email,
-                "subject": "Reset your DeployOne Password",
-                "html": f"""
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <h2 style="color: #5674ff;">Password Reset Request</h2>
-                        <p>Hi {username},</p>
-                        <p>We received a request to reset your password. Click the button below to choose a new one:</p>
-                        <div style="margin: 30px 0;">
-                            <a href="{reset_url}" style="background: #5674ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                                Reset Password
-                            </a>
-                        </div>
-                        <p style="font-size: 0.8rem; color: #94a3b8;">This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
-                    </div>
-                """
-            },
-            headers={
-                "Authorization": f"Bearer {resend_api_key}",
-                "Content-Type": "application/json"
-            },
-            proxies=proxies,
-            timeout=10
-        )
-        response.raise_for_status()
-        return True
-    except Exception as e:
-        app.logger.error(f"Error sending reset email: {e}")
-        return False
+
 
 @app.route('/verify/<token>')
 def verify_email(token):

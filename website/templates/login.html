@@ -161,6 +161,69 @@
         .footer-link { text-align: center; margin-top: 2rem; font-size: 0.9rem; color: var(--muted); }
         .footer-link a { color: var(--accent); text-decoration: none; font-weight: 600; margin-left: 0.4rem; }
         .footer-link a:hover { text-decoration: underline; }
+
+        .top-controls {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .lang-switcher {
+            display: flex;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .lang-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--mono);
+        }
+
+        .lang-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            color: var(--text);
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            position: relative;
+            top: auto;
+            right: auto;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent);
+            background: rgba(86, 116, 255, 0.1);
+        }
+        
+        .theme-toggle svg { width: 18px; height: 18px; }
     </style>
 </head>
 <body data-lang="ca">
@@ -170,10 +233,17 @@
         <div class="glow glow-2"></div>
     </div>
 
-    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle Light/Dark Mode">
-        <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-        <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-    </button>
+    <div class="top-controls">
+        <div class="lang-switcher">
+            <button class="lang-btn" data-switch-lang="ca">CA</button>
+            <button class="lang-btn" data-switch-lang="es">ES</button>
+            <button class="lang-btn active" data-switch-lang="en">EN</button>
+        </div>
+        <button onclick="toggleTheme()" class="theme-toggle" title="Toggle Light/Dark Mode">
+            <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
+    </div>
     
     <div class="card">
         <a href="/" class="logo">
@@ -198,9 +268,6 @@
                 <input type="password" id="password" name="password" placeholder="••••••••••" required>
             <div class="footer-link" style="margin-top: 0; margin-bottom: 1rem; text-align: left;">
                 <a href="{{ url_for('forgot_password') }}" style="font-size: 0.8rem; opacity: 0.7; margin-left: 0;" data-i18n="login_forgot">Forgot password?</a>
-            </div>
-            <div class="footer-link">
-                <a href="{{ url_for('forgot_password') }}" style="font-size: 0.8rem; opacity: 0.7;" data-i18n="login_forgot">Forgot password?</a>
             </div>
             <button type="submit" class="btn" data-i18n="login_btn">→ Sign In</button>
         </form>
@@ -251,10 +318,20 @@
                     el.innerHTML = translations[lang][key];
                 }
             });
+            document.querySelectorAll('[data-switch-lang]').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-switch-lang') === lang);
+            });
         }
 
         const savedLang = localStorage.getItem('preferred-lang') || 'ca';
         setLanguage(savedLang);
+
+        // Language buttons listener
+        document.querySelectorAll('[data-switch-lang]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setLanguage(btn.getAttribute('data-switch-lang'));
+            });
+        });
 
         document.getElementById('loginForm').addEventListener('submit', function() {
             document.getElementById('tidInput').value = sessionStorage.getItem('active_tab_id');
