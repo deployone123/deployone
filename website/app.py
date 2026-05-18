@@ -800,8 +800,12 @@ def list_playbooks_proxy():
                                 pb_info['price'] = 49.99
                                 pb_info['trial_used'] = False
                                 
-                            # The catalog gets everything
-                            catalog.append(pb_info.copy())
+                            # The catalog gets everything, but trials should appear as normal items to buy
+                            catalog_pb = pb_info.copy()
+                            if is_trial_pb:
+                                catalog_pb['is_free'] = False
+                                catalog_pb['price'] = 49.99
+                            catalog.append(catalog_pb)
                             
                             # "My Playbooks" gets what you own OR what you can try for free
                             if pb_info['owned'] or pb_info['is_free']:
