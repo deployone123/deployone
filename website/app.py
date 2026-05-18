@@ -782,20 +782,23 @@ def list_playbooks_proxy():
                             is_trial_pb = ('debian' in path.lower() or 'dns' in path.lower())
                             
                             # Determine Ownership
-                            if g.user['role'] in ['admin', 'pro']:
+                            if g.user['role'] == 'admin':
                                 pb_info['owned'] = True
                             else:
                                 pb_info['owned'] = (path in purchased)
                                 
                             # Determine Free Trial status
-                            if is_trial_pb and not pb_info['owned'] and path not in trials_used:
+                            if is_trial_pb and not pb_info['owned']:
                                 pb_info['is_free'] = True
                                 pb_info['price'] = 0.00
-                                pb_info['trial_used'] = False
+                                if g.user['role'] == 'pro':
+                                    pb_info['trial_used'] = False # PRO users have unlimited trials
+                                else:
+                                    pb_info['trial_used'] = (path in trials_used)
                             else:
                                 pb_info['is_free'] = False
                                 pb_info['price'] = 49.99
-                                pb_info['trial_used'] = (path in trials_used and not pb_info['owned'])
+                                pb_info['trial_used'] = False
                                 
                             # The catalog gets everything
                             catalog.append(pb_info.copy())
